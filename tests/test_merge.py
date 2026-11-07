@@ -163,6 +163,70 @@ class MergeTests(unittest.TestCase):
                                         capture_output=True)
                 self.assertEqual(result.returncode, 2)
 
+    def test_staging_alias_back_to_root_is_excluded(self):
+        canonical_root = self.source.resolve()
+        good = self.transcript().resolve()
+        alias = canonical_root / "_tmp"
+        candidate = alias / good.name
+        original_resolve = Path.resolve
+
+        def resolve(path, *args, **kwargs):
+            if path == candidate:
+                return good
+            if path == alias:
+                return canonical_root
+            return original_resolve(path, *args, **kwargs)
+
+        with patch.object(Path, "resolve", resolve):
+            self.assertFalse(subsmerge.eligible_path(candidate, canonical_root))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows 8.3 path API required")
+    def test_windows_short_path_aliases(self):
+        import ctypes
+        from ctypes import wintypes
+
+        self.source = (self.root / "long folder name for subsmerge").resolve()
+        self.source.mkdir()
+        good = self.transcript("long transcript filename.json")
+        get_short_path = ctypes.WinDLL("kernel32", use_last_error=True).GetShortPathNameW
+        get_short_path.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        get_short_path.restype = wintypes.DWORD
+
+        def short_path(path):
+            required = get_short_path(str(path), None, 0)
+            if not required:
+                raise ctypes.WinError(ctypes.get_last_error())
+            buffer = ctypes.create_unicode_buffer(required)
+            written = get_short_path(str(path), buffer, required)
+            if not written or written >= required:
+                raise ctypes.WinError(ctypes.get_last_error())
+            return Path(buffer.value)
+
+        short_source = short_path(self.source)
+        short_good = short_path(good)
+        if short_source == self.source and short_good == good:
+            self.skipTest("volume does not provide 8.3 aliases for new files")
+        self.assertNotEqual((short_source, short_good), (self.source, good))
+        self.assertEqual(short_source.resolve(), self.source.resolve())
+        self.assertTrue(subsmerge.eligible_path(short_good, self.source))
+        self.assertTrue(subsmerge.eligible_path(good, short_source))
+        self.assertEqual(subsmerge.merge_files([short_good], self.source, self.output), 0)
+        payload = json.loads(self.output.read_text(encoding="utf-8"))
+        self.assertEqual(payload["items"][0]["source_relative_path"], good.name)
+        other = self.root / "other.json"
+        self.assertEqual(subsmerge.merge_files([good], short_source, other), 0)
+        normalized = subsmerge.normalize_item(json.loads(good.read_text(encoding="utf-8")),
+                                              short_good, self.source, False, False)
+        self.assertEqual(normalized["source_relative_path"], good.name)
+        result = self.cli("-o", short_good, "--overwrite")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        staged = self.transcript(".staging/staged.json")
+        self.assertFalse(subsmerge.eligible_path(short_path(staged), short_source))
+        self.source = short_source
+        result = self.cli("-o", self.root / "cli.json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads((self.root / "cli.json").read_text(encoding="utf-8"))["item_count"], 1)
+
     def test_default_cli_name(self):
         self.transcript()
         result = self.cli()

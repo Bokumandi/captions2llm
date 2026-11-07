@@ -103,6 +103,8 @@ def normalize_segments(segments: Any) -> List[Dict[str, Any]]:
 
 
 def normalize_item(obj: Any, source_file: Path, source_root: Path, include_original: bool, include_all_json: bool) -> Optional[Dict[str, Any]]:
+    source_file = source_file.resolve()
+    source_root = source_root.resolve()
     if not isinstance(obj, dict):
         if include_all_json:
             item = {
@@ -169,12 +171,22 @@ def is_merged_dataset(obj: Any) -> bool:
 
 def eligible_path(path: Path, source_root: Path) -> bool:
     """Keep inputs inside the source tree and out of private staging folders."""
+    staging_names = {".runs", "_tmp", ".staging"}
     try:
-        relative = path.relative_to(source_root)
-        path.resolve().relative_to(source_root)
+        source_root = source_root.resolve()
+        relative = path.resolve().relative_to(source_root)
+        if any(part.lower() in staging_names for part in relative.parts[:-1]):
+            return False
+        # Inspect original parents too: resolving a symlink must not hide a
+        # staging directory. Resolved comparisons also accept Windows 8.3 aliases.
+        for parent in path.absolute().parents:
+            if parent.name.lower() in staging_names:
+                return False
+            if parent.resolve() == source_root:
+                return True
     except (ValueError, OSError, RuntimeError):
         return False
-    return not any(part.lower() in {".runs", "_tmp", ".staging"} for part in relative.parts[:-1])
+    return False
 
 
 def find_json_files(folder: Path, output_path: Optional[Path]) -> List[Path]:
@@ -209,13 +221,14 @@ def merge_files(paths: List[Path], source_root: Path, output_path: Path, *,
             path = Path(supplied).expanduser().absolute()
             if not eligible_path(path, folder):
                 raise ValueError(f"input is outside the source tree or in staging: {path}")
-            resolved = path.resolve()
+            path = path.resolve()
+            resolved = path
             targets = (output_path, output_path.with_suffix(".errors.json"))
             if any(resolved == target.resolve() or
                    (path.exists() and target.exists() and path.samefile(target))
                    for target in targets):
                 raise ValueError("output or error log is also a source file")
-            # Resolve aliases before deduplication, while preserving source-relative paths.
+            # Use canonical paths for deduplication and source-relative metadata.
             if resolved not in seen:
                 candidates.append(path)
                 seen.add(resolved)

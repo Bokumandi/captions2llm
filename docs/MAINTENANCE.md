@@ -118,3 +118,25 @@ integration and documentation review returned CLEAR after the resume regressions
 were addressed. The upstream license file was verified against its original Git
 blob. Source-publication inspection confirmed private local evidence and caches
 are ignored; the imported receipt JSON parses successfully.
+
+## Windows CI follow-up — 2026-11-08
+
+The first hosted Windows runs exposed a genuine short-path alias defect:
+`Path.resolve()` expanded the source root while candidate paths retained 8.3
+aliases such as RUNNER~1. Lexical containment checks consequently rejected valid
+inputs and could bypass CLI source-output protection. Canonicalize both sides
+before comparison and normalization, while checking staging parents before alias
+resolution. A GetShortPathNameW regression exercises real 8.3 paths, merge output,
+CLI source protection and staging exclusion. No requirement or expected result
+was weakened to pass CI. The real-video bundle was also resumed successfully
+through the discovered PowerShell 7 executable, with hash-verified reuse.
+
+The corrected local integrated gate completed with 58 tests: 56 passed, two
+skipped because this local volume creates no 8.3 aliases and symlink privilege
+is unavailable. Hosted CI is responsible for exercising the real short-path
+branch on its alias-bearing Windows environment.
+
+The narrow follow-up review also checked a staging junction resolving back to the
+source root. Lexical staging names are rejected before accepting an alias of the
+root; a deterministic mocked-junction regression covers this without requiring
+symlink privileges.
