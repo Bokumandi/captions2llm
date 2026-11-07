@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+subsdown_output/
+_tmp/
+.staging/
+.runs/
+*.log
+.env
+.env.*
+local-evidence/

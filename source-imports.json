@@ -1,0 +1,41 @@
+{
+  "import_date": "2026-11-08",
+  "source": "Owner-provided local subsdown v4 and subsmerge v2 scripts",
+  "files": [
+    {
+      "file": "subsdown.ps1",
+      "sha256": "5aa8bad454f7c0b3d4696d82e6af48ca94a6d67448c96ceb396399a14257574b",
+      "bytes": 27565
+    },
+    {
+      "file": "subsdown.cmd",
+      "sha256": "05b7a1e5ceef90c935377132d6e9dbea9971c7614c28d9ba98bc3180b21709c1",
+      "bytes": 85
+    },
+    {
+      "file": "srt_fixer_cli.py",
+      "sha256": "ee1513fcef559bd890d759809956145fe9da1b9883fdb60d3aa1e81d5e375a45",
+      "bytes": 3197
+    },
+    {
+      "file": "simplesrt.py",
+      "sha256": "92637e931e48597d6b5a98ce9637540c455cb8448ea8c2f8afd303f5b484db86",
+      "bytes": 7765
+    },
+    {
+      "file": "subsmerge.py",
+      "sha256": "3f0c37b6d7865f3ea0693e686f73f48a384fe1c6e379f8ec14a016b91300fe25",
+      "bytes": 11134
+    },
+    {
+      "file": "subsmerge.ps1",
+      "sha256": "de96c4f7109198e44eb9c65cd42a2da13604ab2d3ab97b9fa67863c93e84caf7",
+      "bytes": 1543
+    },
+    {
+      "file": "subsmerge.cmd",
+      "sha256": "dd5548337f81697ea4a3f4a681ba9eef683d4cb49acd12f502d969f1bd40a2de",
+      "bytes": 86
+    }
+  ]
+}
