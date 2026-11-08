@@ -47,7 +47,8 @@ try {
             product_version = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'VERSION') -Raw).Trim()
             exit_code = 1; manifest_path = $null; output_root = $null
             summary = @{ success = 0; unavailable = 0; failed = 0 }
-            merged_json = $null; merged_markdown = $null; error = $_.Exception.Message
+            merged_json = $null; merged_markdown = $null
+            index_json = $null; index_markdown = $null; error = $_.Exception.Message
         }
         [Console]::Out.WriteLine(($result | ConvertTo-Json -Compress))
     }

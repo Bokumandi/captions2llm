@@ -257,3 +257,60 @@ as its working directory, matching the documented manual workflow and avoiding
 CMD's special first-quoted-argument parsing. No assertion or required behavior
 was relaxed. The replacement archive must pass the full gate in that spaced path
 before release publication.
+
+## Offline index and bounded reading plans — 0.3.0
+
+The 0.3.0 contract adds a compact per-run index and an offline CLI for existing
+exports. The index includes track identity, available metadata, relative paths and
+hashes, plus manifest coverage gaps; it does not embed transcript bodies. `prepare`
+creates unique derived batches with a default 30,000-character Markdown budget,
+including headings and citations. Whole caption tracks are preferred; consecutive segments
+and oversized cue fragments preserve text without semantic deduplication. This is
+a character limit, not a tokenizer or a guarantee about a model prompt or response.
+
+Source bundles remain unchanged. Plans, report templates and accepted Markdown
+are derived artifacts; status uses declared coverage and source hashes to distinguish
+pending, partial, declared complete and invalidated states. A declaration is not
+independent evidence that analysis occurred or that unavailable captions exist.
+The Python standard library and small Windows launchers preserve the existing
+local, offline workflow without a model service or new installation. `--output`
+requires a new directory and report replacement requires explicit `--overwrite`.
+
+Fresh coordinator verification: `python -X utf8 verify.py` passed 103 tests
+(100 passed, three platform-capability skips) on Python 3.13.2. After final narrow
+index/report regressions, `python -X utf8 -m unittest discover -s tests -p
+test_batch.py -v` passed 21 tests (20 passed, one symlink-privilege skip). These
+checks exercise actual PowerShell 5.1, PowerShell 7 and CMD launchers. The full
+gate preceded the final copied-manifest exclusion and added regressions; the final
+focused suite covers those changes. Python 3.11 and missing local 8.3/symlink
+capabilities remain for hosted CI; no CI/publication result is claimed here.
+
+A private real-corpus qualification used the 87 existing playlist tracks, retaining
+two download gaps: 87 complete track parts in 50 reading batches, maximum 29,793
+characters. Every segment reconstructed exactly and all source hashes remained
+unchanged. A clearly labeled technical report tested partial acceptance/resume;
+no new editorial analysis or complete reading was claimed. Timed cue labels add
+reading overhead; the character cap bounds each file, not total inference cost.
+
+Independent review reproduced and then verified fixes for valid tracks within a
+failed item, unowned report-directory replacement, source mutation between parse
+and hash, and plans omitting indexed sources. Additional seeded Unicode/CRLF/empty
+cue probes reconstructed 78 fragments without loss. Review returned clear.
+Report replacement expects one writer per plan. A process kill between directory
+renames may leave a `.staging-prior-*` backup; status signals the interrupted
+replacement and preserves that backup for recovery rather than deleting it.
+
+Routing requested for this change: coordinator on its attached session; batch
+implementation GPT-6.1 Sol/high; contract tests GPT-6.1 Sol/high; documentation
+GPT-6.1 Terra/medium; independent review GPT-6 Astra/high. Requested configuration
+is recorded; separate confirmed model identifiers and token/cost totals were not
+exposed. Workers owned disjoint files and the coordinator ran integrated checks.
+
+## Source publication qualification — 2026-11-08
+
+Before the owner-authorized GitHub source update, the final installed 0.3.0
+implementation passed `python -X utf8 verify.py`: 106 tests, 103 passed and three
+local platform-capability skips. This full gate includes the final copied-manifest,
+coverage, report-ownership and source-read-race regressions. Only this verification
+record changed after the gate; no runtime or test source changed. GitHub CI remains
+a separate result to check on the published commit.

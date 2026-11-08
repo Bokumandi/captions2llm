@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Add compact per-run JSON and Markdown indexes with track provenance and coverage gaps.
+- Add offline indexing, bounded reading plans, coverage status and validated report acceptance for existing transcript collections.
+- Preserve source exports while creating unique index and batch outputs; expose structured JSON results for agents.
+
 ## 0.2.0
 
 - Reframe the product around caption-derived text corpora for LLMs and agents.

@@ -101,6 +101,16 @@ class ReleaseTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.base / "out").exists())
 
+    def test_derived_analysis_artifacts_are_refused(self):
+        (self.repo / '.batches').mkdir()
+        (self.repo / '.batches' / 'report.json').write_text('{}', encoding='utf-8')
+        self.git('add', '.batches')
+        self.commit('accidentally tracked analysis')
+        result = self.run_release(self.base / 'out')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Unsafe', result.stderr)
+        self.assertFalse((self.base / 'out').exists())
+
 
 if __name__ == "__main__":
     unittest.main()

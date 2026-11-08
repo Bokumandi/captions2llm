@@ -4,7 +4,12 @@ __pycache__/
 subsdown_output/
 _tmp/
 .staging/
+.staging-*/
 .runs/
+.indexes/
+.batches/
+subsindex-*.json
+subsindex-*.md
 *.log
 .env
 .env.*

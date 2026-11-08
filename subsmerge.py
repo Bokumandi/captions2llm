@@ -190,18 +190,24 @@ def is_merged_dataset(obj: Any) -> bool:
     return isinstance(obj, dict) and "subsmerge_version" in obj and isinstance(obj.get("items"), list)
 
 
+def is_batch_artifact(obj: Any) -> bool:
+    """Exclude derived corpus indexes, plans and reports even at custom paths."""
+    return isinstance(obj, dict) and str(obj.get("schema_version", obj.get("schema", ""))).startswith("subsbatch.")
+
+
 def eligible_path(path: Path, source_root: Path) -> bool:
     """Keep inputs inside the source tree and out of private staging folders."""
-    staging_names = {".runs", "_tmp", ".staging"}
+    staging_names = {".runs", "_tmp", ".staging", ".indexes", ".batches"}
     try:
         source_root = source_root.resolve()
         relative = path.resolve().relative_to(source_root)
-        if any(part.lower() in staging_names for part in relative.parts[:-1]):
+        if any(part.lower() in staging_names or part.lower().startswith('.staging-')
+               for part in relative.parts[:-1]):
             return False
         # Inspect original parents too: resolving a symlink must not hide a
         # staging directory. Resolved comparisons also accept Windows 8.3 aliases.
         for parent in path.absolute().parents:
-            if parent.name.lower() in staging_names:
+            if parent.name.lower() in staging_names or parent.name.lower().startswith('.staging-'):
                 return False
             if parent.resolve() == source_root:
                 return True
@@ -218,7 +224,7 @@ def find_json_files(folder: Path, output_path: Optional[Path]) -> List[Path]:
         if path.suffix.lower() != ".json" or not path.is_file() or not eligible_path(path, folder):
             continue
         name = path.name.lower()
-        if name.startswith("subsmerge-") or name in {"subsmerge.json", "manifest.json"}:
+        if name.startswith(("subsmerge-", "subsindex-")) or name in {"subsmerge.json", "manifest.json"}:
             continue
         if output_resolved and path.resolve() in {output_resolved, output_resolved.with_suffix(".errors.json")}:
             continue
@@ -367,8 +373,8 @@ def merge_files(paths: List[Path], source_root: Path, output_path: Path, *,
     for path in candidates:
         try:
             data = read_json(path)
-            if is_merged_dataset(data):
-                ignored.append({"file": str(path), "reason": "already a merged dataset"})
+            if is_merged_dataset(data) or is_batch_artifact(data):
+                ignored.append({"file": str(path), "reason": "derived corpus artifact"})
                 continue
             item = normalize_item(data, path, folder, include_original, include_all_json, text_only)
             if item is None:

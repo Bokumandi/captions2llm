@@ -86,8 +86,7 @@ Use `subsdown.cmd` for the Windows PowerShell 5.1 wrapper, or
 
 A large single JSON/MD makes sense as a **storage and exchange artifact**. It does
 not make an unlimited corpus fit into an LLM's context window. Use the combined
-Markdown/text-only profile when it fits; otherwise select videos and passages from
-the per-video files, or split at video boundaries in the consuming workflow.
+Markdown/text-only profile when it fits; otherwise use `subsbatch` to prepare bounded reading parts from the per-video files.
 There is no tokenizer, embedding index, semantic search engine or model-specific
 context-budget guarantee built into Subsdown.
 
@@ -130,6 +129,7 @@ subsdown_output/
     transcript.md
     transcript.json
   .runs/RUN_ID.json
+  .indexes/INDEX_ID/
   subsmerge-RUN_ID.json
   subsmerge-RUN_ID.md
 ```
@@ -137,7 +137,9 @@ subsdown_output/
 Each per-track three-file bundle is published by one directory rename. A new run
 creates unique outputs instead of silently overwriting earlier exports.
 The manifest records requested scope, tool versions, success/unavailable/failure
-counts, relative export paths and hashes. Ingestion means **available caption text**:
+counts, relative export paths and hashes. Each run also creates a compact JSON and
+Markdown index (`index_json` and `index_markdown` in the result), including
+coverage gaps and track metadata without transcript bodies. Ingestion means **available caption text**:
 a missing or restricted caption track becomes a reported gap, not fabricated text.
 
 ```powershell
@@ -155,6 +157,55 @@ Downloader exit codes: **0** complete selected scope, **2** partial/unavailable,
 read the report/manifest before claiming coverage. With `-Json`, stdout is one
 structured result containing exit code, manifest and corpus locations; progress
 is on stderr. Direct Python uses `--json` and `--kebab-case` options.
+
+## Index and prepare offline reading batches
+
+```powershell
+python subsbatch.py index .\subsdown_output --json
+python subsbatch.py prepare .\subsdown_output --max-chars 30000 --json
+python subsbatch.py status $PlanPath --json
+python subsbatch.py accept-report $PlanPath $ReportPath --json
+```
+
+`index FOLDER` inventories existing per-track exports without downloading or
+embedding transcripts. `prepare FOLDER` writes a reading plan, bounded Markdown
+parts and a JSON report template. Both accept `--manifest FILE` to use a run
+manifest and `--output DIR` for a new output directory. The default locations
+are unique directories under `.indexes` and `.batches`; existing source files are
+not changed. Use paths returned by the command, rather than guessing IDs.
+
+The default `--max-chars 30000` is a character budget for each batch reading file,
+including its headings and citations. It is not a model-token budget and excludes
+the prompt and model response. A whole caption track is kept together when it fits;
+different languages of the same video remain separate items,
+otherwise consecutive timed segments, or fragments of an oversized cue, retain
+the source text without semantic deduplication. Review the plan and sources before
+analysis. No model is invoked, and local reprocessing needs no network or installs.
+
+Set `$PlanPath` from the returned `plan_path`. Copy the appropriate template named
+in `plan.json` to a separate `$ReportPath`; keep the original template unchanged
+because its hash is verified on resume. Fill the copy after analysis and run `accept-report`
+with the plan and report paths. It validates coverage and writes an accepted
+Markdown report; `--overwrite` permits replacing that derived report. `status`
+checks the plan's coverage and source hashes and reports `pending`, `partial`,
+`declared_complete` or `invalidated`. A declared report is an operator declaration,
+not proof that an LLM understood the material. `--json` produces a structured
+machine result; use `python subsbatch.py --help` for full arguments.
+
+Windows launchers expose the same operations. For example:
+
+```powershell
+.\subsbatch.ps1 prepare .\subsdown_output -MaxChars 30000 -Json
+.\subsbatch.ps1 accept-report $PlanPath $ReportPath -Json
+```
+
+Use `subsbatch.cmd` for the Windows PowerShell wrapper. Run one report writer per
+plan at a time; accepted report replacement requires explicit `-Overwrite`.
+
+Offline commands return **0** on success and **2** for invalid input, preparation
+failure or partial index/preparation coverage. A partial result can still contain
+usable output paths; inspect `gap_count`, `error_count` and `enumeration_pending`.
+`status` returns the state of each batch, including invalidation, in its result.
 
 ## Merge existing collections or clean local SRT
 

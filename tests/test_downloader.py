@@ -63,6 +63,29 @@ class DownloaderTests(unittest.TestCase):
         self.cli([VIDEO])
         for path, digest in old.items(): self.assertEqual(common.sha256(Path(path)),digest)
         self.assertEqual(len(list(self.output.rglob('transcript.json'))),2)
+
+    def test_automatic_index_is_current_run_only(self):
+        first = json.loads(self.cli([VIDEO, '--json']).stdout)
+        self.assertTrue(Path(first['index_json']).is_file())
+        self.assertTrue(Path(first['index_markdown']).is_file())
+        second = json.loads(self.cli(['https://youtu.be/ccccccccccc', '--json']).stdout)
+        indexed = json.loads(Path(second['index_json']).read_text(encoding='utf-8'))
+        self.assertEqual(indexed['item_count'], 1)
+        self.assertEqual(indexed['items'][0]['video_id'], 'ccccccccccc')
+        self.assertEqual(len(list(self.output.rglob('transcript.json'))), 2)
+
+    def test_index_failure_keeps_exports_and_reports_partial(self):
+        import subsbatch
+        args = SimpleNamespace(url=VIDEO, input_file=None, out_root=str(self.output),
+            language=None, manual=False, subtitle_args=[], current_video_only=False,
+            keep_work=False, process_all=False, resume=None, merge=False,
+            yt_dlp=str(FAKE), ffmpeg=str(FAKE))
+        with patch.object(subsbatch, 'write_index', side_effect=OSError('synthetic index failure')):
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(subsdown.run(args), 2)
+        self.assertEqual(len(list(self.output.rglob('transcript.json'))), 1)
+        self.assertIn('synthetic index failure', self.manifest()['index_error'])
+        self.assertIsNone(args.result['index_json'])
     def test_resume_reuses_verified_exports(self):
         self.cli([VIDEO])
         manifest=next((self.output/'.runs').glob('*.json'))

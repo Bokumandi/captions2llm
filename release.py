@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 RESERVED = re.compile(r"(?i)^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$")
 BLOCKED = {".git", "__pycache__", ".venv", "local-evidence", "subsdown_output",
-           "_tmp", ".staging", ".runs"}
+           "_tmp", ".staging", ".runs", ".indexes", ".batches"}
 BLOCKED_EXTENSIONS = {".exe", ".dll", ".pyc", ".log"}
 
 
@@ -31,7 +31,7 @@ def safe_path(path: str) -> bool:
         part and part not in {".", ".."} and part.casefold() not in BLOCKED
         and not RESERVED.fullmatch(part) and not part.endswith((" ", "."))
         and not any(ord(c) < 32 or c in '<>:"\\|?*' for c in part)
-        and not part.casefold().startswith(".env")
+        and not part.casefold().startswith((".env", "subsindex-", ".staging-"))
         for part in parts
     ) and Path(parts[-1]).suffix.casefold() not in BLOCKED_EXTENSIONS
 

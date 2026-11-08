@@ -337,7 +337,8 @@ def result_record():
     return {'schema_version': 'subsdown.result.v1', 'product_version': VERSION,
             'exit_code': 1, 'manifest_path': None, 'output_root': None,
             'summary': {'success': 0, 'unavailable': 0, 'failed': 0},
-            'merged_json': None, 'merged_markdown': None}
+            'merged_json': None, 'merged_markdown': None,
+            'index_json': None, 'index_markdown': None}
 
 
 def run(args):
@@ -578,6 +579,20 @@ def run(args):
         else:
             manifest['merged_output'] = str(merged_path.relative_to(root))
             manifest['merged_markdown'] = str(markdown_path.relative_to(root))
+    # Index only this run, including its gaps; never silently index older exports.
+    try:
+        from subsbatch import write_index
+        indexed = write_index(root, root / ('subsindex-' + run_id + '.json'),
+                              root / ('subsindex-' + run_id + '.md'), manifest=manifest)
+        manifest['index_json'] = str(Path(indexed['index_json']).relative_to(root))
+        manifest['index_markdown'] = str(Path(indexed['index_markdown']).relative_to(root))
+        args.result.update(index_json=indexed['index_json'], index_markdown=indexed['index_markdown'])
+        if any(indexed.get(key, 0) for key in ('gap_count', 'error_count', 'enumeration_pending')):
+            exit_code = 2
+    except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
+        manifest['index_error'] = str(exc)
+        args.result['index_error'] = str(exc)
+        exit_code = 2
     manifest['exit_code'] = exit_code
     checkpoint()
     args.result.update(exit_code=exit_code, summary=counts,
