@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0
+## 0.4.0 — 2026-11-08
 
 - Rename the product Captions2LLM and add unified Python, PowerShell and CMD
   entry points for download, merge and offline reading operations.

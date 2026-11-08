@@ -26,15 +26,15 @@ Reuse existing tools. The examples below assume `python`, `yt-dlp`, `ffmpeg` and
 [the setup guide](docs/AGENT_GUIDE.md#find-the-required-tools). Local indexing,
 merging and batch preparation use Python's standard library and need no network.
 
-### 2. Get the current source
+### 2. Get the release or source
 
-These instructions describe the **0.4.0 source tree**. As of November 8, 2026,
-the latest [packaged release](https://github.com/Bokumandi/captions2llm/releases)
-is 0.2.0, which predates the unified commands and reading plans. Use the current
-checkout for this workflow. If you install an older release, follow its bundled
-README instead.
+These instructions cover **Captions2LLM 0.4.0**. Download the source ZIP, manifest
+and checksums from the [v0.4.0 release](https://github.com/Bokumandi/captions2llm/releases/tag/v0.4.0),
+then [verify and extract them](docs/RELEASING.md#install-a-packaged-release).
+Keep VERSION, modules and license notices together. For another version, follow
+the README bundled with that version.
 
-In PowerShell, from a short directory of your choice:
+Alternatively, clone the current source. In PowerShell, from a short directory:
 
 ```powershell
 git clone https://github.com/Bokumandi/captions2llm.git
@@ -42,7 +42,8 @@ Set-Location captions2llm
 .\captions2llm.ps1 --version
 ```
 
-If you already have a checkout, use it instead of cloning over it. There is no
+If you already extracted the release or have a suitable checkout, enter that
+directory and run the version command instead of cloning again. There is no
 `pip install`, build step or API key to configure.
 
 ### 3. Download a playlist

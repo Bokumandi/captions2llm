@@ -29,15 +29,16 @@ missing. Keep runtime artifacts outside source checkouts.
 
 ## Select the source version
 
-The unified CLI and batch commands below are in source **0.4.0**. As of
-2026-11-08, the published release is **v0.2.0**; it does not contain this whole
-workflow. For these instructions, reuse a suitable source checkout or clone
-`main`. Release users should follow the documentation bundled with their archive,
-as described in [RELEASING.md](RELEASING.md).
+The unified CLI and batch workflow below are available in **Captions2LLM 0.4.0**.
+Use the [v0.4.0 source release](https://github.com/Bokumandi/captions2llm/releases/tag/v0.4.0)
+or a compatible checkout. Follow [the release installation steps](RELEASING.md#install-a-packaged-release)
+to verify an archive, and use the documentation shipped with the chosen version.
 
-Read the host's tool-location instructions first. For an existing checkout, set
-`$RepoRoot` to its resolved absolute path and skip the clone. Otherwise choose a
-writable parent and run:
+Read the host's tool-location instructions first. For an extracted release or
+existing checkout, set `$RepoRoot` to its resolved absolute path and skip the clone
+block. For an archive, record the source commit from `release-manifest.json`;
+`git rev-parse` applies only to a checkout. To get the current development source,
+choose a writable parent and run:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
