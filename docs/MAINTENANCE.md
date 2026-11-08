@@ -356,3 +356,22 @@ GPT-6.1 Sol/high; documentation GPT-6.1 Terra/medium; independent migration revi
 GPT-6 Astra/high. The coordinator owns integration, GitHub identity and the local
 directory move. Confirmed model identities and per-mission cost were not separately
 exposed. Each write surface had one owner; the full gate ran after integration.
+
+### Rename acceptance — 2026-11-08
+
+The source commit `d484e3e0a99eec032988d6613272a2aa88e90788` passed both hosted
+Windows/Python 3.11 and 3.13 jobs in [the renamed repository's CI](https://github.com/Bokumandi/captions2llm/actions/runs/42475522802).
+The repository retained its identity, history and main branch. Git access and API
+requests to its old URL were checked to redirect to the same repository.
+
+A real source archive from that commit had all 38 manifest entries and hashes
+verified after extraction into a path with spaces and Unicode. Its canonical and
+legacy CMD downloads produced equal synthetic video, caption and transcript data;
+Python and PowerShell product/version launchers also worked from an external cwd.
+No network caption download was used as a substitute for compatibility testing.
+
+The local directory was moved with a compatibility junction at its previous
+location. All 189 inventoried non-Git/non-bytecode files retained their hashes,
+including ignored local evidence. Both paths can read the same existing 87-track
+plan: 49 pending batches, one explicitly partial technical report and no invalidated
+batches. Local evidence and machine-specific paths remain outside this repository.
