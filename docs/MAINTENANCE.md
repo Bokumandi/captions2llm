@@ -2,8 +2,10 @@
 
 ## Product contract
 
-Subsdown is a small Windows subtitle tool, not a transcription service or a media
-downloader. Keep the PowerShell/CMD commands, standard-library Python helpers and
+Subsdown prepares caption-derived text corpora for LLMs and agents through a
+Windows CLI. Whole playlists and public channel collections are primary inputs;
+combined JSON/Markdown are the primary exchange artifacts. It retrieves existing
+captions, not media, and is not an audio transcription or LLM inference service. Keep the PowerShell/CMD commands, standard-library Python helpers and
 historical `subsdown.v4` transcript fields compatible. `VERSION` owns the product
 version. `subsmerge_version: 2.0.0` is the retained merged-format marker;
 `product_version` identifies this product's implementation.
@@ -159,3 +161,91 @@ Guide verification: local Markdown targets resolve, all five PowerShell example
 blocks parse, and the existing integrated gate passes 58 tests (two local
 platform-capability skips). No dependency was provisioned and no additional video
 was downloaded for this documentation change.
+
+## LLM-corpus Goal — 2026-11-08
+
+The owner clarified the purpose: collect available transcripts from entire
+playlists/channels and create a large JSON/Markdown corpus for LLM analysis, with
+manual command-line use and especially agent-system integration. Whole collections
+must have no arbitrary default cap. Large aggregate files are useful storage and
+exchange, but the consuming LLM/agent must still respect its context window.
+
+Read-only audits found the former presentation understated that purpose, channel
+URLs were rejected, only JSON could be merged, normalized compact merges lost
+caption-source provenance, transcript bodies were repeated, no structured CLI
+stdout existed and no release had been published. GitHub REST reported fork=false
+and no parent/source network metadata. Existing upstream attribution was real but
+buried; NOTICE.md now names the modified files/revision and distinguishes their
+Unlicense upstream code from MIT local modifications. Root LICENSE is standard
+MIT text; detection is checked separately rather than assumed.
+
+The owner's additional instruction requires visible AI-development disclosure.
+README/NOTICE identify Codex with GPT-family models, under owner direction; no
+upstream code is attributed to AI without evidence. This is provenance disclosure,
+not an assertion that GitHub requires every incorporated component to be a network
+fork. No history/repository recreation is needed to declare a vendored derivative.
+
+The 0.2.0 change adds whole public channel roots and explicit upload tabs, combined
+JSON/Markdown, text-only ingestion, additive normalized caption/processing
+provenance, structured process reports and deterministic interpreter discovery.
+The existing per-video schema and standalone merge defaults remain compatible.
+Default subsdown -Merge now omits the redundant original payload; standalone merge
+retains it unless NoOriginal/TextOnly is selected. Text-only changes combined
+outputs only, preserving individual timed sources. MaxVideos is opt-in and its
+selection scope is persisted; it is not a default bound or a paging API.
+
+A source ZIP release with VERSION, code, docs, tests and licenses is appropriate
+for Python; external runtimes remain separate. The archive/manifest/checksum
+builder fixes a Git commit/tree and excludes untracked private outputs. See
+RELEASING.md. No PyPI package, self-contained exe, MCP server or new framework is
+introduced just to expose the already useful CLI integration seam.
+
+Remaining scale limits are explicit: enumeration/merge materialize data in memory,
+checkpoint inventories are rewritten repeatedly, networking is sequential and
+YouTube can omit inaccessible content. Synthetic complete-collection tests and a
+small real retrieval validate behavior, not a million-video throughput claim.
+An index/sharded or streaming representation can be revisited after measured
+memory/latency limits are reached; ordinary per-video artifacts already permit
+selective consumption without sending the whole corpus to an LLM.
+
+Mission routing: provenance audit Sol/high; runtime capability audit/implementation
+Sol/high; merger implementation Sol/high; source packaging Terra/medium. Coordinator
+owns product contracts, version, docs, attribution, integration and publication.
+Requested models/efforts are recorded; confirmed runtime model, tokens and cost
+are not separately exposed. Disjoint writes are used; final acceptance is freshly
+verified by the coordinator rather than inferred from agent reports.
+
+Knowledge delta: README.md, NOTICE.md, AGENTS.md, docs/AGENT_GUIDE.md,
+docs/MAINTENANCE.md, docs/RELEASING.md and CHANGELOG.md. No new machine installation,
+model service, repository skill, global configuration or private-media migration
+is introduced. Canonical source import hashes remain unchanged.
+
+Independent integration/release review returned CLEAR. Fresh in-memory probes
+covered nested upload tabs, compact provenance/body uniqueness, Markdown metadata,
+structured fatal reports and unsafe archive paths. Local documentation links and
+all 11 PowerShell blocks parse successfully.
+
+A real bounded channel-root retrieval used the public channel associated with the
+owner's original video and explicitly selected two source positions. Both returned
+automatic captions and exit 0. The coordinator parsed the JSON process result,
+validated two compact corpus items (no embedded original or segment bodies),
+retained caption provenance/source hashes, and confirmed each full text appears
+once in the combined Markdown. Caption/corpus files remain ignored local evidence.
+This validates actual channel entry and corpus integration, not a whole-channel
+network census or a high-volume throughput benchmark. The 120-item uncapped
+synthetic test verifies complete selected enumeration and actual corpus writing.
+
+Combined corpus files are atomic individually, not as an overwrite transaction
+for the whole JSON/Markdown pair. New files owned by a failed paired write are
+rolled back; previously existing derived outputs are not deleted. A failed
+Markdown overwrite may leave the earlier JSON replacement in place. Inspect the
+nonzero status/report before treating a pair as complete. New per-run paired
+outputs avoid this overwrite case; original per-video bundle publication remains
+atomic as a directory.
+
+The final coordinator gate for 0.2.0 completed with 82 tests: 80 passed and two
+local platform-capability skips (symlink privilege and new 8.3 aliases). The 120
+synthetic-video case writes and checks real aggregate files, using mocked network
+metadata and publication inputs. The independent review returned CLEAR. Final
+archive extraction and hosted CI are release acceptance steps, recorded with the
+published release rather than inferred from these local results.

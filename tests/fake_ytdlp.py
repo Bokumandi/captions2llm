@@ -15,9 +15,37 @@ video = query.get('v', ['aaaaaaaaaaa'])[0]
 if '--dump-single-json' in args:
     if os.environ.get('SD_FAKE_FAIL_METADATA'):
         raise SystemExit(7)
-    if 'list' in query and '--no-playlist' not in args:
-        print(json.dumps({'_type':'playlist','id':'PL_SYNTHETIC','title':os.environ.get('SD_FAKE_PLAYLIST_NAME', 'Synthetic playlist'),
-                          'entries':[{'id':'aaaaaaaaaaa'}, {'id':'bbbbbbbbbbb'}, None]}))
+    if ('list' in query or not query.get('v')) and '--no-playlist' not in args:
+        if os.environ.get('SD_FAKE_REQUIRE_END') and '--playlist-end' not in args:
+            raise SystemExit(12)
+        cap = int(args[args.index('--playlist-end')+1]) if '--playlist-end' in args else None
+        path = urlsplit(url).path.rstrip('/')
+        channel_id = 'UC' + 'A' * 22
+        base = 'https://www.youtube.com/@Synthetic'
+        if 'list' in query:
+            entries = [{'id':'aaaaaaaaaaa'}, {'id':'bbbbbbbbbbb'}, None]
+            if os.environ.get('SD_FAKE_NULL_SECOND'):
+                entries = [{'id':'aaaaaaaaaaa'}, None, {'id':'ccccccccccc'}]
+            if os.environ.get('SD_FAKE_PLAYLIST_RECOVER'):
+                entries = [{'id':'aaaaaaaaaaa'}, {'id':'ccccccccccc'}, {'id':'ddddddddddd'}]
+            data = {'_type':'playlist','id':'PL_SYNTHETIC',
+                    'title':os.environ.get('SD_FAKE_PLAYLIST_NAME', 'Synthetic playlist')}
+        else:
+            data = {'_type':'playlist','id':channel_id, 'channel_id':channel_id,
+                    'channel_url':'https://www.youtube.com/channel/' + channel_id,
+                    'uploader_url':base, 'title':'Synthetic uploads'}
+            if path.endswith('/videos'):
+                entries = [{'id':'aaaaaaaaaaa'}]
+            elif path.endswith('/shorts'):
+                entries = [{'id':'ccccccccccc'}]
+            elif path.endswith('/streams'):
+                entries = [{'id':'ddddddddddd'}]
+            else:
+                entries = [{'_type':'playlist', 'entries':[{'id':'aaaaaaaaaaa'}]},
+                           {'_type':'playlist', 'entries':[{'id':'ccccccccccc'}, {'id':'aaaaaaaaaaa'}]},
+                           {'_type':'url', 'url':base + '/streams', 'ie_key':'YoutubeTab'}]
+        data['entries'] = entries[:cap] if 'list' in query else entries
+        print(json.dumps(data))
     else:
         print(json.dumps({'id': video, 'title': 'Demonstration é [test]', 'channel': 'Synthetic channel',
                           'language': 'fr-FR', 'duration': 5, 'subtitles': {'fr':[{'ext':'srt'}]},

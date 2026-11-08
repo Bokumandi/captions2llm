@@ -2,7 +2,9 @@
 
 For installation or operation, read [docs/AGENT_GUIDE.md](docs/AGENT_GUIDE.md) first.
 For code changes, read README.md and docs/MAINTENANCE.md before changing behavior.
-This repository contains Windows launchers and Python helpers for subtitles only.
+This repository prepares caption-derived video corpora for LLM ingestion, using
+Windows launchers and standard-library Python helpers. Read NOTICE.md for upstream
+cleaner provenance, licensing scope and Codex/GPT-assisted development disclosure.
 Keep legacy command entry points and the documented JSON export fields compatible.
 VERSION is the single source of the product version. Keep active documentation,
 comments, docstrings and tests in English. Preserve LICENSES/srt_fix-Unlicense.txt

@@ -14,6 +14,9 @@ param(
     [Parameter(Position = 1)]
     [string]$Output = "",
 
+    [string]$MarkdownOutput = "",
+    [switch]$TextOnly,
+    [switch]$Json,
     [switch]$Pretty,
     [switch]$IncludeAllJson,
     [switch]$NoOriginal,
@@ -35,15 +38,30 @@ if ([string]::IsNullOrWhiteSpace($ScriptDir)) {
     $ScriptDir = (Get-Location).Path
 }
 
+function Write-LaunchFailure([string]$Message) {
+    [Console]::Error.WriteLine($Message)
+    if ($Json) {
+        $VersionFile = Join-Path $ScriptDir "VERSION"
+        $ProductVersion = "unknown"
+        if (Test-Path -LiteralPath $VersionFile) {
+            $ProductVersion = (Get-Content -LiteralPath $VersionFile -Raw).Trim()
+        }
+        [ordered]@{ schema = "subsmerge.result.v1"; version = $ProductVersion;
+            exit_code = 2; output_json = $null; output_markdown = $null;
+            error_log = $null; item_count = 0; ignored_count = 0; error_count = 0;
+            error = $Message } | ConvertTo-Json -Compress
+    }
+}
+
 $PyScript = Join-Path $ScriptDir "subsmerge.py"
 if (-not (Test-Path $PyScript)) {
-    Write-Error "Python helper not found: $PyScript"
+    Write-LaunchFailure "Python helper not found: $PyScript"
     exit 2
 }
 
 $PythonCommand = Get-Command -Name $Python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $PythonCommand) {
-    [Console]::Error.WriteLine("Python executable not found: $Python")
+    Write-LaunchFailure "Python executable not found: $Python"
     exit 2
 }
 $argsList = @("-X", "utf8", $PyScript, $Folder)
@@ -51,6 +69,11 @@ $argsList = @("-X", "utf8", $PyScript, $Folder)
 if (-not [string]::IsNullOrWhiteSpace($Output)) {
     $argsList += @("--output", $Output)
 }
+if (-not [string]::IsNullOrWhiteSpace($MarkdownOutput)) {
+    $argsList += @("--markdown-output", $MarkdownOutput)
+}
+if ($TextOnly) { $argsList += "--text-only" }
+if ($Json) { $argsList += "--json" }
 if ($Pretty) {
     $argsList += "--pretty"
 }
@@ -74,7 +97,7 @@ try {
     if ($null -eq $code) { $code = 2 }
 }
 catch {
-    [Console]::Error.WriteLine($_.Exception.Message)
+    Write-LaunchFailure $_.Exception.Message
     $code = 2
 }
 exit $code

@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import subsmerge
-from common import VERSION
+from common import VERSION, sha256
 
 
 class MergeTests(unittest.TestCase):
@@ -226,6 +226,172 @@ class MergeTests(unittest.TestCase):
         result = self.cli("-o", self.root / "cli.json")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads((self.root / "cli.json").read_text(encoding="utf-8"))["item_count"], 1)
+
+    def test_text_only_keeps_text_once_and_preserves_provenance(self):
+        sentence = "A unique synthetic sentence for corpus checking."
+        processing = {"tool_versions": {"yt-dlp": "test-version"}, "raw_sha256": "a" * 64,
+                      "product_version": "synthetic-1"}
+        source = self.write("track.json", {
+            "schema_version": "subsdown.v4", "type": "YouTubeSubtitleTranscript",
+            "video": {"title": "Synthetic track", "channel": "Test channel", "id": "abc",
+                      "url_clean": "https://www.youtube.com/watch?v=abc"},
+            "subtitle": {"language": "fr", "kind": "auto", "origin": "youtube auto-generated captions",
+                         "translated": False}, "processing": processing,
+            "transcript": {"plain_text": sentence, "segments": [
+                {"index": 1, "start": "00:00:01,000", "end": "00:00:03,000", "text": sentence}]}})
+        markdown = self.output.with_suffix(".md")
+        self.assertEqual(subsmerge.merge_files([source], self.source, self.output,
+                                              text_only=True, markdown_output=markdown), 0)
+        encoded = self.output.read_text(encoding="utf-8")
+        item = json.loads(encoded)["items"][0]
+        self.assertEqual(encoded.count(sentence), 1)
+        self.assertEqual(markdown.read_text(encoding="utf-8").count(sentence), 1)
+        self.assertNotIn("segments", item)
+        self.assertNotIn("original", item)
+        self.assertEqual(item["subtitle"]["segment_count"], 1)
+        self.assertEqual(item["subtitle"]["kind"], "auto")
+        self.assertEqual(item["subtitle"]["origin"], "youtube auto-generated captions")
+        self.assertIs(item["subtitle"]["translated"], False)
+        self.assertEqual(item["processing"], processing)
+        self.assertEqual(item["source_schema_version"], "subsdown.v4")
+        self.assertEqual(item["source_sha256"], sha256(source))
+        self.assertNotIn("00:00:01,000", markdown.read_text(encoding="utf-8"))
+
+    def test_paired_corpus_same_subset_order_timestamps_and_unknown_provenance(self):
+        selected = []
+        for index in (13, 2, 25, 1):
+            selected.append(self.write(f"track-{index}.json", {
+                "video": {"title": f"Video {index}", "id": f"id-{index}", "channel": "Synthetic", "url": f"https://example.com/{index}"},
+                "playlist": {"index": index}, "subtitle": {"language": "en", "kind": "manual"},
+                "transcript": {"segments": [{"start": "00:00:00,500", "end": "00:00:01,500", "text": f"Sentence {index}."}]}}))
+        self.transcript("older.json", "An unrelated older transcript")
+        markdown = self.output.with_suffix(".md")
+        self.assertEqual(subsmerge.merge_files(selected, self.source, self.output,
+                                              include_original=False, markdown_output=markdown), 0)
+        items = json.loads(self.output.read_text(encoding="utf-8"))["items"]
+        self.assertEqual([item["video_id"] for item in items], ["id-1", "id-2", "id-13", "id-25"])
+        text = markdown.read_text(encoding="utf-8")
+        positions = [text.index("## " + str(n) + ". " + item["title"]) for n, item in enumerate(items, 1)]
+        self.assertEqual(positions, sorted(positions))
+        self.assertEqual(text.count("[00:00:00,500 --> 00:00:01,500]"), 4)
+        self.assertNotIn("An unrelated older transcript", text)
+        self.assertIn("- Translated: unknown", text)
+        self.assertIn("- Caption origin: unknown", text)
+        for item in items:
+            self.assertNotIn("original", item)
+            self.assertIn("segments", item)
+            self.assertNotIn("translated", item["subtitle"])
+            self.assertIn(item["url"], text)
+
+    def test_all_destinations_preflight_before_writing(self):
+        good = self.transcript()
+        source_markdown = self.source / "transcript.md"
+        source_markdown.write_text("Source Markdown must survive", encoding="utf-8")
+        staging_markdown = self.source / ".staging" / "transcript.md"
+        staging_markdown.parent.mkdir()
+        staging_markdown.write_text("Staged source Markdown", encoding="utf-8")
+        for markdown in (good, source_markdown, staging_markdown, self.output, self.output.with_suffix(".errors.json")):
+            with self.subTest(markdown=markdown):
+                self.assertEqual(subsmerge.merge_files([good], self.source, self.output,
+                                                      markdown_output=markdown, overwrite=True), 2)
+                self.assertFalse(self.output.exists())
+                self.assertEqual(source_markdown.read_text(encoding="utf-8"), "Source Markdown must survive")
+        blocker = self.root / "parent-is-a-file"
+        blocker.write_text("previous")
+        self.assertEqual(subsmerge.merge_files([good], self.source, self.output,
+                                              markdown_output=blocker / "result.md"), 2)
+        self.assertFalse(self.output.exists())
+
+    def test_markdown_and_error_hardlinks_to_unselected_source_are_protected(self):
+        good = self.transcript()
+        other = self.transcript("unselected.json", "Unselected source")
+        before = other.read_bytes()
+        for target in (self.root / "corpus.md", self.output.with_suffix(".errors.json")):
+            with self.subTest(target=target):
+                try:
+                    target.hardlink_to(other)
+                except OSError:
+                    self.skipTest("hardlinks unavailable")
+                try:
+                    self.assertEqual(subsmerge.merge_files([good], self.source, self.output,
+                                                          markdown_output=self.root / "corpus.md", overwrite=True), 2)
+                    self.assertEqual(other.read_bytes(), before)
+                    self.assertFalse(self.output.exists())
+                finally:
+                    target.unlink()
+
+    def test_paired_io_failure_removes_only_new_json(self):
+        source = self.transcript()
+        before = source.read_bytes()
+        markdown = self.root / "corpus.md"
+        markdown.write_text("previous Markdown", encoding="utf-8")
+        with patch("subsmerge.atomic_write_text", side_effect=OSError("synthetic Markdown failure")):
+            self.assertEqual(subsmerge.merge_files([source], self.source, self.output,
+                                                  markdown_output=markdown, overwrite=True), 2)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(markdown.read_text(encoding="utf-8"), "previous Markdown")
+        self.output.write_text("previous derived output", encoding="utf-8")
+        with patch("subsmerge.atomic_write_text", side_effect=OSError("synthetic Markdown failure")):
+            self.assertEqual(subsmerge.merge_files([source], self.source, self.output,
+                                                  markdown_output=markdown, overwrite=True), 2)
+        self.assertTrue(self.output.exists())
+        self.assertEqual(json.loads(self.output.read_text(encoding="utf-8"))["item_count"], 1)
+        self.assertEqual(source.read_bytes(), before)
+        self.assertEqual(markdown.read_text(encoding="utf-8"), "previous Markdown")
+
+    def test_cli_machine_report_success_strict_and_fatal(self):
+        self.transcript()
+        markdown = self.root / "corpus.md"
+        completed = self.cli("--json", "-o", self.output, "--markdown-output", markdown, "--text-only")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        result = json.loads(completed.stdout)
+        self.assertEqual(result["schema"], "subsmerge.result.v1")
+        self.assertEqual(result["version"], VERSION)
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(result["item_count"], 1)
+        self.assertEqual(result["error_count"], 0)
+        self.assertEqual(result["output_json"], str(self.output))
+        self.assertEqual(result["output_markdown"], str(markdown))
+        self.assertIn("JSON integrated:", completed.stderr)
+        self.assertEqual(len(completed.stdout.strip().splitlines()), 1)
+        bad = self.source / "broken.json"
+        bad.write_text("{invalid", encoding="utf-8")
+        strict = self.cli("--json", "-o", self.root / "strict.json", "--fail-on-error")
+        self.assertEqual(strict.returncode, 3, strict.stderr)
+        result = json.loads(strict.stdout)
+        self.assertEqual(result["exit_code"], 3)
+        self.assertEqual(result["error_count"], 1)
+        self.assertIsNone(result["output_json"])
+        self.assertTrue(Path(result["error_log"]).is_file())
+        invalid = self.cli("--json", "--unknown-option")
+        self.assertEqual(invalid.returncode, 2)
+        self.assertEqual(json.loads(invalid.stdout)["exit_code"], 2)
+        missing = subprocess.run([sys.executable, str(Path(subsmerge.__file__)),
+                                  str(self.root / "missing"), "--json"], capture_output=True, encoding="utf-8")
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("error", json.loads(missing.stdout))
+
+    def test_powershell_paired_text_only_machine_report_and_setup_failure(self):
+        self.transcript()
+        for shell in ("powershell", "pwsh"):
+            executable = shutil.which(shell)
+            if not executable:
+                continue
+            with self.subTest(shell=shell):
+                output = self.root / (shell + "-corpus.json")
+                markdown = output.with_suffix(".md")
+                command = [executable, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                           str(Path(subsmerge.__file__).with_suffix(".ps1")), str(self.source),
+                           "-Output", str(output), "-MarkdownOutput", str(markdown), "-TextOnly", "-Json"]
+                completed = subprocess.run(command + ["-Python", sys.executable], capture_output=True, encoding="utf-8")
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(json.loads(completed.stdout)["output_markdown"], str(markdown))
+                item = json.loads(output.read_text(encoding="utf-8"))["items"][0]
+                self.assertNotIn("original", item)
+                self.assertNotIn("segments", item)
+                missing = subprocess.run(command + ["-Python", "missing-synthetic-executable-19483"], capture_output=True, encoding="utf-8")
+                self.assertEqual(missing.returncode, 2)
+                self.assertEqual(json.loads(missing.stdout)["schema"], "subsmerge.result.v1")
 
     def test_default_cli_name(self):
         self.transcript()

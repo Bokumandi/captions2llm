@@ -1,160 +1,211 @@
-# Subsdown + Subsmerge
+# Subsdown + Subsmerge — YouTube text corpora for LLMs
 
-Download YouTube captions, conservatively clean automatic rolling subtitles, and
-export timestamped SRT, Markdown and JSON transcripts. Merge a batch into one JSON
-file for reading or LLM processing. Video and audio are never requested.
+**Turn captioned YouTube videos, whole playlists and public channels into a corpus
+that an LLM or an agent can analyze.** Collect available automatic or manual
+captions, remove demonstrated rolling-caption redundancies, preserve sources and
+timestamps, then assemble **one JSON and one Markdown file for the collection**.
+Per-video files remain available for selective reading and subtitle editing.
 
-Windows PowerShell 5.1 and PowerShell 7 launchers are supported. The Python helpers
-use only the standard library; no Python package installation is needed.
+The primary workflow is **video text → cleaned transcripts → LLM ingestion**.
+SRT export is a useful companion. The tool retrieves existing captions; it does
+not download video/audio, invent a missing transcript or run an LLM itself.
 
-For agent-driven installation, dependency discovery and operation, start with the
-[agent operations guide](docs/AGENT_GUIDE.md).
+**Upstream credit:** the cleaner contains a modified copy of
+[bindestriche/srt_fix](https://github.com/bindestriche/srt_fix), originally released
+under the Unlicense. This independent application incorporates that derived
+component; it is not a GitHub-network fork of the complete upstream repository.
+The original notice is preserved. Local contributions and modifications are MIT
+licensed. See [NOTICE.md](NOTICE.md) for exact files, revision and license scope.
 
-## Requirements
+**AI-assisted development:** application code, modifications, tests and docs were
+generated and reworked with **OpenAI Codex using GPT-family models**, under the
+repository owner's direction. Upstream authorship is credited separately.
 
-- Windows with Python **3.11 or 3.13**, `yt-dlp`, and FFmpeg available on `PATH`.
-- A working yt-dlp JavaScript runtime when YouTube requires it; follow the
-  [official yt-dlp instructions](https://github.com/yt-dlp/yt-dlp#dependencies).
-- Publicly accessible YouTube captions. Missing tracks, authentication requirements,
-  rate limits and site changes are reported; the tool does not transcribe audio.
-
-Reuse existing installations. There is no implicit download, installation or tool
-update. Supply explicit paths with `-Python`, `-YtDlp` and `-FFmpeg` when necessary.
-Run commands from this checkout, or invoke the launchers by their full paths.
-
-## Download and clean
+## Start with a whole playlist or channel
 
 ```powershell
-# Original-language automatic captions, plus a merged JSON for this run.
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Merge
-
-# Choose French manual captions instead.
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Manual -Language fr
-
-# Download a playlist. Quote URLs containing &.
+# Process the entire returned playlist; create combined JSON + Markdown.
 .\subsdown.ps1 "https://www.youtube.com/playlist?list=PLAYLIST_ID" -Merge
 
-# A video link containing a playlist: process only this video.
+# Process the public channel, including its returned video/short/live upload tabs.
+# TextOnly keeps a single copy of each transcript's text in the combined JSON.
+.\subsdown.ps1 "https://www.youtube.com/@Creator" -Merge -TextOnly
+
+# Optional small trial. There is NO automatic collection-size limit by default.
+.\subsdown.ps1 "https://www.youtube.com/@Creator" -MaxVideos 10 -Merge -TextOnly
+
+# Agent workflow: exactly one final JSON object on stdout; progress on stderr.
+.\subsdown.ps1 -InputFile .\links.txt -Merge -TextOnly -Json
+```
+
+Replace placeholders with real public YouTube URLs. A channel root selects the
+channel's public uploads as enumerated by yt-dlp; an explicit `/videos`, `/shorts`
+or `/streams` tab restricts scope to that tab. Public `@handle`, `/channel/ID`,
+`/user/name` and `/c/name` forms are accepted. Authenticated account feeds,
+subscriptions and private libraries are not supported.
+
+There is **no arbitrary default cap**. The request covers every entry returned
+for the selected collection, subject to public access and caption availability.
+`-MaxVideos N` is an explicit scope limit, counting selected source positions
+including unavailable entries; it is retained on resume. It is not pagination or
+an assertion of the channel's absolute completeness. YouTube may hide content.
+Large collections take time: the downloader is sequential, not a parallel crawler.
+
+For installation, dependency discovery and agent operation, start with the
+[agent guide](docs/AGENT_GUIDE.md). It is linked from [AGENTS.md](AGENTS.md).
+
+## Requirements and release installation
+
+- Windows, Python **3.11 or 3.13**, and PowerShell **5.1 or 7** for launchers.
+- For downloading: `yt-dlp`, FFmpeg and the JavaScript runtime required by yt-dlp
+  for YouTube challenges. See [official dependencies](https://github.com/yt-dlp/yt-dlp#dependencies).
+- Local cleaning/merging only needs Python. Helpers use the standard library:
+  no `pip install`, npm, API key, model weights or server is required.
+
+Use a checkout or extract the source ZIP from [Releases](https://github.com/Bokumandi/subsdown/releases).
+Keep its directory structure, including `VERSION`, modules, launchers and license
+notices. A source release fixes a version/commit and supplies SHA-256 checksums;
+it is not a standalone executable and does not bundle third-party dependencies.
+Python software can have releases even when external tools are installed separately.
+
+Reuse compatible shared installations. Supply explicit paths with `-Python`,
+`-YtDlp` and `-FFmpeg` when needed. There is no automatic installation or update.
+Use `subsdown.cmd` for the Windows PowerShell 5.1 wrapper, or
+`pwsh -File .\subsdown.ps1 ...` for PowerShell 7. No global PATH change is required.
+
+## Choose the right corpus representation
+
+| Output | Best use | Text and provenance |
+| --- | --- | --- |
+| Per-video `transcript.json` | Agent reads selected videos or timestamps | Structured video/track metadata, plain text and timed segments |
+| Per-video `transcript.md` | Read one video in an LLM/chat | Source URL, caption labels and timestamped text |
+| Combined JSON from `-Merge` | Store, exchange and programmatically inspect a collection | `items` with source identity, caption provenance, text and segments; no embedded duplicate original payload |
+| Combined JSON with `-TextOnly` | Compact LLM ingestion | Text once per item; preserves identity, language, source/translation metadata and original segment count; omits segment bodies |
+| Combined Markdown | Read/share a collection as text | Explicit video boundaries, source URLs and caption provenance; timestamps in normal mode, plain text in TextOnly mode |
+| Per-video `transcript.srt` | Subtitle editing or timed interchange | Clean validated subtitles |
+
+A large single JSON/MD makes sense as a **storage and exchange artifact**. It does
+not make an unlimited corpus fit into an LLM's context window. Use the combined
+Markdown/text-only profile when it fits; otherwise select videos and passages from
+the per-video files, or split at video boundaries in the consuming workflow.
+There is no tokenizer, embedding index, semantic search engine or model-specific
+context-budget guarantee built into Subsdown.
+
+The normal combined JSON intentionally contains both `text` and timed `segments`:
+agents should ingest one representation for a given task. `-TextOnly` removes that
+remaining repeated transcript text. Original per-video timestamped files remain.
+Overlapping input collections may contain the same video more than once; this is
+not an incremental global library cache or semantic duplicate detector.
+
+## Other download options
+
+```powershell
+.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Merge -OutRoot .\subsdown_output
+.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Language fr -Merge
+.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Manual -Language fr -Merge
 .\subsdown.ps1 "https://www.youtube.com/watch?v=VIDEO_ID&list=PLAYLIST_ID" -CurrentVideoOnly
-
-# Batch links.txt contains one video or playlist URL per line; # starts a comment.
-.\subsdown.ps1 -InputFile .\links.txt -OutRoot .\subsdown_output -Merge
-
-# Explicit selection can include multiple language patterns.
 .\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Language "en.*,fr.*" -Merge
 ```
 
-Replace placeholder IDs with real YouTube IDs. `subsdown.cmd` exposes the same
-parameters through Windows PowerShell 5.1. Use `pwsh -File .\subsdown.ps1 ...`
-for PowerShell 7. The current working directory owns the default
-`subsdown_output` directory; it is not fixed to the script installation.
+`links.txt` contains one video, playlist or channel URL per line; blank lines and
+`#` comments are ignored. Quote URLs containing `&`. Default captions are automatic
+in the original language. Original-track evidence takes priority over dubbed audio
+metadata; missing or ambiguous originals are reported without a language fallback.
+`-Manual` selects uploaded captions; `-Language` can explicitly request a different
+language. Identifiable translations are labeled. Human translations may not be
+identifiable from metadata. Live chat is not an ordinary speech transcript.
 
-The default is **automatic captions in the original language**. Original-track
-markers take priority over metadata for dubbed audio. If several original tracks
-exist, the declared video language selects one; ambiguous original language is an
-explicit unavailable result. A missing language does not trigger fallback.
-`-Manual` selects uploaded/manual captions. Translated tracks explicitly requested
-by language are marked when YouTube metadata identifies them as translations;
-manual translations may not be distinguishable from author-provided captions.
-
-Legacy subtitle arguments remain supported, for example:
-
-```powershell
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" --write-subs --sub-langs fr
-```
-
-Allowed legacy arguments are `--write-subs`, `--no-write-subs`,
+Legacy subtitle arguments are retained: `--write-subs`, `--no-write-subs`,
 `--write-auto-subs`, `--no-write-auto-subs`, `--sub-langs`, `--sub-format` and
-`--convert-subs srt`. Output/execution/download options are rejected. SRT output
-is required. `-ProcessAllDownloadedSubtitles` remains accepted for compatibility;
-all explicitly selected tracks are already exported. `-KeepWork` retains raw
-caption intermediates. Failed work is retained for diagnosis by default.
+`--convert-subs srt`. Arbitrary yt-dlp execution/output/download flags are refused.
+`-ProcessAllDownloadedSubtitles` remains accepted; explicitly selected tracks are
+already exported. `-KeepWork` retains raw intermediates; failed work is retained.
 
-## Outputs, partial runs and resume
+## Outputs, partial results and resume
 
 ```text
 subsdown_output/
-  Channel/
-    Playlist-or-video [ID]/
-      VIDEO_ID-language-kind/
-        transcript.srt
-        transcript.md
-        transcript.json
+  Channel/Collection [ID]/VIDEO_ID-language-kind/
+    transcript.srt
+    transcript.md
+    transcript.json
   .runs/RUN_ID.json
-  subsmerge-RUN_ID.json       # when -Merge was requested
+  subsmerge-RUN_ID.json
+  subsmerge-RUN_ID.md
 ```
 
-Each three-file bundle is staged privately and published with one directory
-rename. A new execution creates a unique bundle rather than overwriting an old
-one. The extra item directory keeps the three formats consistent on interruption.
-Source media and the historical script directory are never modified.
-
-The run manifest records selected inputs, tool versions, per-video status,
-relative output paths and SHA-256 hashes. Partial batches retain their successful
-tracks, including when another track of the same video fails. `-Merge` includes
-only verified bundles from this run, not unrelated older downloads.
+Each per-track three-file bundle is published by one directory rename. A new run
+creates unique outputs instead of silently overwriting earlier exports.
+The manifest records requested scope, tool versions, success/unavailable/failure
+counts, relative export paths and hashes. Ingestion means **available caption text**:
+a missing or restricted caption track becomes a reported gap, not fabricated text.
 
 ```powershell
-# Use the manifest path printed at the end of the original run.
-.\subsdown.ps1 -Resume .\subsdown_output\.runs\RUN_ID.json -Merge
+.\subsdown.ps1 -Resume .\subsdown_output\.runs\RUN_ID.json -Merge -TextOnly -Json
 ```
 
-Resume retains the original output root and caption selection. Do not combine it
-with new input or selection options. Complete verified items are reused without
-fetching their metadata again. Failed items and unresolved playlist entries are
-retried; modified or missing exports are not trusted. Reuse validates all three
-files. A checkpoint preserves unvisited prior results across repeated interruptions.
-Use a reasonably short `-OutRoot` (at most 105 characters) for Windows path limits.
+Use the exact printed/reported manifest path. Input, language and collection scope
+are fixed on resume; the combined output profile can be selected anew. Complete
+hash-verified items are reused without fetching their metadata again. Changed,
+missing and failed items are retried. Prior successes survive repeated interruptions.
+Run one resume per output tree at a time. Keep OutRoot at most 105 characters.
 
-Downloader exit codes: **0** complete, **2** partial/unavailable, **1** fatal setup
-or input error. A usable merged subset can accompany exit 2; consult the manifest.
+Downloader exit codes: **0** complete selected scope, **2** partial/unavailable,
+**1** fatal input/setup failure. Exit 2 can accompany a useful JSON/MD subset;
+read the report/manifest before claiming coverage. With `-Json`, stdout is one
+structured result containing exit code, manifest and corpus locations; progress
+is on stderr. Direct Python uses `--json` and `--kebab-case` options.
 
-## Merge existing transcripts
+## Merge existing collections or clean local SRT
 
 ```powershell
+# Full legacy JSON export (includes original payload by default for compatibility).
 .\subsmerge.ps1 .\subsdown_output -Output .\combined.json -Pretty
-.\subsmerge.ps1 .\subsdown_output -Output .\combined.json -Overwrite
-.\subsmerge.ps1 .\subsdown_output -Output .\compact.json -NoOriginal -FailOnError
-```
 
-`subsmerge.cmd` and `python subsmerge.py` are also available. The merger accepts
-historical subsdown exports, skips staging and already-merged datasets, and sorts
-by playlist index then title. `-NoOriginal` omits embedded original JSON;
-`-IncludeAllJson` explicitly permits unrelated JSON. No source file may be replaced.
-Existing outputs require `-Overwrite`; writes are atomic. Invalid inputs produce
-an `.errors.json` report. `-FailOnError` prevents the merged dataset when any input
-cannot be read. Merger exit codes: **0** output written (inspect `error_count` for
-non-strict partial reads), **2** input/output error, **3** strict read failure,
-**4** no usable transcript.
+# Compact corpus plus one combined Markdown; suitable for LLM ingestion.
+.\subsmerge.ps1 .\subsdown_output -Output .\corpus.json -MarkdownOutput .\corpus.md -TextOnly -Json
 
-## Clean local SRT files
+# Retain timed segments but omit the embedded original object.
+.\subsmerge.ps1 .\subsdown_output -Output .\timed.json -NoOriginal -FailOnError
 
-```powershell
-python srt_fixer_cli.py source.srt
 python srt_fixer_cli.py source.srt -o cleaned.srt
 python srt_fixer_cli.py -idir .\raw -odir .\clean
 python srt_fixer_cli.py source.srt -o cleaned.srt --manual
 ```
 
-The cleaner rejects empty/malformed files and invalid timestamps. Automatic mode
-removes shared multiword lines only from overlapping advancing caption windows.
-It preserves exact repeated phrases, short cues and separated speech. Manual mode
-preserves every cue/text line and normalizes the SRT representation. Valid overlaps
-are retained rather than inventing new timings. Existing outputs need `--overwrite`;
-the source file can never be overwritten.
+Separate merge/cleanup needs no network. Standalone merger preserves the historical
+JSON default; automatic `subsdown -Merge` omits embedded original payloads.
+`-Overwrite` / `--overwrite` is required to replace an output; source files are
+protected. Merger exit codes: **0** dataset written (inspect `error_count` for
+non-strict partial reads), **2** input/output error, **3** strict read failure,
+**4** no usable transcript. `-IncludeAllJson` explicitly allows generic JSON.
+Staging and already-merged datasets are excluded.
 
-## Development and provenance
+The cleaner derives from srt_fix but uses more conservative rules: it removes
+shared multiword lines only from overlapping advancing caption windows. Exact
+repeated phrases, separated speech and short cues are retained. Manual mode
+preserves every cue/text line and normalizes formatting. Empty/malformed inputs
+and invalid timestamps are rejected. Valid overlaps are retained rather than
+inventing timings.
+
+## Verification, integration and releases
 
 ```powershell
 python verify.py
 ```
 
-The verification command uses synthetic fixtures and fake subprocesses, never
-YouTube. CI runs it on Windows with Python 3.11 and 3.13 and exercises both
-PowerShell versions. Real captions, logs and local evidence remain private and
-are excluded from Git. Review local exports before sharing them: metadata and
-merged files can include local paths and third-party transcript text.
+The offline gate uses synthetic captions and fake download processes; CI runs
+Windows/Python 3.11 and 3.13 with both PowerShell versions. Read
+[maintenance evidence and limits](docs/MAINTENANCE.md) for actual network and
+batch tests. Whole-channel behavior is based on public enumeration, not a promise
+that every hidden/private/deleted item can be recovered. Collection manifests and
+merges are held in memory; checkpoint rewriting and large corpus memory costs have
+not been qualified as a production-scale crawler benchmark.
 
-See [maintenance decisions and verification](docs/MAINTENANCE.md) and
-[contributor instructions](AGENTS.md). Project contributions are MIT licensed;
-the derived `srt_fix` cleaner retains its [upstream Unlicense](LICENSES/srt_fix-Unlicense.txt).
+Agents can call the CLI, parse `-Json`/`--json`, inspect manifest/exit status and read
+per-video or combined outputs. This is a CLI integration contract, not an MCP
+server or a hosted service. No automatic LLM upload or inference takes place.
+See the [agent guide](docs/AGENT_GUIDE.md) and [release procedure](docs/RELEASING.md).
+
+[Changelog](CHANGELOG.md) · [Code/AI provenance](NOTICE.md) · [MIT](LICENSE) ·
+[Upstream Unlicense](LICENSES/srt_fix-Unlicense.txt)

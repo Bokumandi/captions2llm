@@ -1,4 +1,8 @@
-"""Command-line entry point for the derived srt_fix cleaner (Unlicense)."""
+"""CLI derived from https://github.com/bindestriche/srt_fix.
+
+Matching upstream revision: 5b4442a8cdcae06c53545f4d0c99c3e624416919.
+Upstream code: Unlicense; local modifications: MIT. See NOTICE.md.
+"""
 from __future__ import annotations
 
 import argparse

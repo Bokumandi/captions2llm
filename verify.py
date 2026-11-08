@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parent
 for file in root.rglob('*.py'):
     if 'local-evidence' not in file.parts and '__pycache__' not in file.parts:
         ast.parse(file.read_text(encoding='utf-8-sig'), filename=str(file.relative_to(root)))
-for name in ('README.md', 'AGENTS.md', 'docs/MAINTENANCE.md', 'LICENSE', 'LICENSES/srt_fix-Unlicense.txt', 'source-imports.json'):
+for name in ('README.md', 'AGENTS.md', 'docs/AGENT_GUIDE.md', 'docs/MAINTENANCE.md', 'NOTICE.md', 'LICENSE', 'LICENSES/srt_fix-Unlicense.txt', 'source-imports.json'):
     if not (root/name).is_file():
         raise SystemExit('Missing maintenance artifact: ' + name)
 if sys.platform != 'win32':

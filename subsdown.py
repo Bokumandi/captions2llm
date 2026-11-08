@@ -2,8 +2,10 @@
 """Subtitle-only batch orchestration behind the Windows subsdown launchers."""
 from __future__ import annotations
 import argparse
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 import json
+from itertools import islice
 import os
 from pathlib import Path
 import re
@@ -40,7 +42,11 @@ def youtube_url(value):
     if playlist and not re.fullmatch(r'[A-Za-z0-9_-]+', playlist):
         raise ValueError('Invalid playlist ID')
     if not video and not playlist:
-        raise ValueError('Expected a video or playlist URL')
+        path = parsed.path.rstrip('/')
+        channel = re.fullmatch(r'(/@[^/\s?#]+|/(?:user|c)/[^/\s?#]+|/channel/UC[A-Za-z0-9_-]{22})(/(?:videos|shorts|streams))?', path)
+        if host != 'youtu.be' and channel:
+            return 'https://www.youtube.com' + channel.group(1) + (channel.group(2) or '')
+        raise ValueError('Expected a video, playlist or public channel URL')
     return 'https://www.youtube.com/' + ('watch?' if video else 'playlist?') + urlencode(
         {**({'v': video} if video else {}), **({'list': playlist} if playlist else {})})
 
@@ -66,14 +72,80 @@ def invoke(executable, arguments, *, timeout=180):
                            'check video availability, network access and installed tool versions')
     return result.stdout
 
-def metadata(executable, url, *, flat=False):
+def metadata(executable, url, *, flat=False, playlist_end=None):
     arguments = ['--ignore-config', '--no-cache-dir', '--skip-download', '--no-warnings',
                  '--encoding', 'utf-8', '--dump-single-json']
     arguments += ['--flat-playlist'] if flat else ['--no-playlist']
+    if flat and playlist_end is not None:
+        arguments += ['--playlist-end', str(playlist_end)]
     data = json.loads(invoke(executable, [*arguments, url]))
     if not isinstance(data, dict):
         raise ValueError('yt-dlp returned invalid video metadata')
     return data
+
+def channel_base(url):
+    """Return the public channel identity without an explicit upload tab."""
+    path = urlsplit(url).path.rstrip('/')
+    return re.sub(r'/(?:videos|shorts|streams)$', '', path)
+
+
+def collection_entries(executable, data, source_url, *, playlist_end=None):
+    """Flatten public upload tabs while retaining the root collection identity.
+
+    Follow only upload-tab links belonging to the requested channel or an alias
+    reported by its metadata. Never follow arbitrary collection or account URLs.
+    """
+    channel_source = not parse_qs(urlsplit(source_url).query).get('list')
+    aliases = {channel_base(source_url)}
+    for key in ('channel_url', 'uploader_url'):
+        if data.get(key):
+            try:
+                aliases.add(channel_base(youtube_url(data[key])))
+            except ValueError:
+                pass
+    for key in ('channel_id', 'id'):
+        identity = str(data.get(key, ''))
+        if re.fullmatch(r'UC[A-Za-z0-9_-]{22}', identity):
+            aliases.add('/channel/' + identity)
+    visited = {source_url}
+
+    def walk(entries, depth):
+        if depth > 8:
+            raise ValueError('Nested upload collection exceeds the supported depth')
+        for entry in entries:
+            if entry is None:
+                yield None
+                continue
+            if not isinstance(entry, dict):
+                raise ValueError('Invalid nested upload entry')
+            if isinstance(entry.get('entries'), list):
+                yield from walk(entry['entries'], depth + 1)
+            elif re.fullmatch(r'[A-Za-z0-9_-]{11}', str(entry.get('id', ''))):
+                yield entry
+            elif entry.get('url'):
+                linked = youtube_url(entry['url'])
+                video_id = parse_qs(urlsplit(linked).query).get('v', [''])[0]
+                if video_id:
+                    yield {**entry, 'id': video_id}
+                    continue
+                path = urlsplit(linked).path.rstrip('/')
+                if (not channel_source or channel_base(linked) not in aliases or
+                    not path.endswith(('/videos', '/shorts', '/streams'))):
+                    raise ValueError('Unsupported nested collection URL in upload enumeration')
+                if linked in visited:
+                    raise ValueError('Cyclic upload-tab enumeration')
+                visited.add(linked)
+                nested = metadata(executable, linked, flat=True, playlist_end=playlist_end)
+                if not isinstance(nested.get('entries'), list):
+                    raise ValueError('Upload tab did not return a collection')
+                yield from walk(nested['entries'], depth + 1)
+            elif entry.get('_type') in ('playlist', 'multi_video', 'url', 'url_transparent'):
+                raise ValueError('Nested collection is missing a supported upload-tab URL')
+            else:
+                yield None
+
+    yield from walk(data['entries'], 0)
+
 
 def legacy_selection(arguments):
     """Allow subtitle selection only; never forward execution or output options."""
@@ -261,17 +333,34 @@ def publish_track(info, track, stage, output_root, selection, versions, playlist
     return [{'path': str(file.relative_to(output_root)), 'sha256': sha256(file)}
             for file in sorted(destination.iterdir())]
 
+def result_record():
+    return {'schema_version': 'subsdown.result.v1', 'product_version': VERSION,
+            'exit_code': 1, 'manifest_path': None, 'output_root': None,
+            'summary': {'success': 0, 'unavailable': 0, 'failed': 0},
+            'merged_json': None, 'merged_markdown': None}
+
+
 def run(args):
+    args.result = result_record()
+    max_videos = getattr(args, 'max_videos', None)
+    text_only = getattr(args, 'text_only', False)
+    if text_only and not args.merge:
+        raise ValueError('--text-only requires --merge')
+    if max_videos is not None and (isinstance(max_videos, bool) or not isinstance(max_videos, int) or max_videos < 1):
+        raise ValueError('--max-videos must be a positive integer')
     if args.resume:
         previous = json.loads(Path(args.resume).read_text(encoding='utf-8-sig'))
         if previous.get('schema_version') != 'subsdown.run.v1':
             raise ValueError('Unsupported resume manifest')
-        if args.url or args.input_file or args.language or args.manual or args.subtitle_args or args.current_video_only or args.process_all:
+        if args.url or args.input_file or args.language or args.manual or args.subtitle_args or args.current_video_only or args.process_all or max_videos is not None:
             raise ValueError('Resume uses the saved input/selection; do not supply input or selection overrides')
         root = Path(previous['output_root']).resolve()
         if args.out_root and Path(args.out_root).resolve() != root:
             raise ValueError('Resume must use the original OutRoot')
         selection = previous['selection']
+        max_videos = selection.get('max_videos')
+        if max_videos is not None and (isinstance(max_videos, bool) or not isinstance(max_videos, int) or max_videos < 1):
+            raise ValueError('Invalid saved max-videos scope')
         targets = previous['targets']
         for target in targets:
             target['url'] = youtube_url(target['url'])
@@ -280,6 +369,11 @@ def run(args):
         enumeration_targets = previous.get('enumeration_targets', targets if not saved_queue else [])
         for target in saved_queue + enumeration_targets:
             target['url'] = youtube_url(target['url'])
+            if 'entry_end' in target:
+                entry_end = target['entry_end']
+                if (max_videos is None or isinstance(entry_end, bool) or not isinstance(entry_end, int)
+                    or entry_end < 1 or entry_end > max_videos):
+                    raise ValueError('Invalid saved upload enumeration scope')
     else:
         if bool(args.url) == bool(args.input_file):
             raise ValueError('Specify exactly one URL or -InputFile')
@@ -293,13 +387,15 @@ def run(args):
         selection = {'language': custom.get('language', args.language or 'original'),
                      'manual': custom.get('manual', args.manual), 'auto': custom.get('auto', not (custom.get('manual') or args.manual)),
                      'legacy': args.subtitle_args, 'current_video_only': args.current_video_only,
-                     'keep_work': args.keep_work, 'process_all': args.process_all, 'format': custom.get('format', 'srt/vtt/best')}
+                     'keep_work': args.keep_work, 'process_all': args.process_all, 'max_videos': max_videos, 'format': custom.get('format', 'srt/vtt/best')}
         if not selection['manual'] and not selection['auto']:
             raise ValueError('At least one subtitle source must be enabled')
         targets = [{'url': url, 'playlist': {}} for url in urls]
         old_items = {}
         saved_queue = []
         enumeration_targets = targets
+    if selection['current_video_only'] and any(not parse_qs(urlsplit(target['url']).query) for target in targets):
+        raise ValueError('--current-video-only cannot select a public channel')
     if selection['language'] != 'original':
         try:
             for pattern in selection['language'].split(','):
@@ -319,6 +415,7 @@ def run(args):
     root.mkdir(parents=True, exist_ok=True)
     run_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S') + '-' + uuid.uuid4().hex[:8]
     manifest_path = root / '.runs' / (run_id + '.json')
+    args.result.update(manifest_path=str(manifest_path), output_root=str(root))
     manifest = {'schema_version': 'subsdown.run.v1', 'product_version': VERSION, 'created_at': now(),
                 'output_root': str(root), 'selection': selection.copy(), 'tool_versions': versions,
                 'targets': targets.copy(), 'expanded_targets': saved_queue.copy(), 'enumeration_targets': enumeration_targets.copy(), 'items': []}
@@ -335,31 +432,69 @@ def run(args):
     selection['_ffmpeg'] = ffmpeg[-1]
     selection['keep_work'] = args.keep_work or selection['keep_work']
     queue = saved_queue.copy()
+    # A capped run keeps the first occurrence of each video across its inputs.
+    # Missing source positions consume scope too; resume retries those positions
+    # without widening the original selection.
+    queue_keys = {target['url'] if max_videos else target['url'] + '|' + str(target['playlist'].get('id') or '')
+                  for target in queue}
+    selected_positions = len(queue_keys)
     remaining_enumeration = []
     for target in enumeration_targets:
+        scoped_retry = max_videos is not None and 'entry_end' in target
+        if max_videos is not None and selected_positions >= max_videos and not scoped_retry:
+            break
+        entry_end = target.get('entry_end') if scoped_retry else (max_videos - selected_positions if max_videos else None)
+        inspected = 0
+        unavailable = False
         try:
-            data = metadata(executable, target['url'], flat=not selection['current_video_only'])
+            data = metadata(executable, target['url'], flat=not selection['current_video_only'], playlist_end=entry_end)
             entries = data.get('entries')
             if isinstance(entries, list):
                 playlist = {'title': data.get('title'), 'id': data.get('id'), 'source_url': target['url']}
-                for number, entry in enumerate(entries, 1):
-                    if entry and re.fullmatch(r'[A-Za-z0-9_-]{11}', str(entry.get('id', ''))):
-                        queue.append({'url': 'https://www.youtube.com/watch?v=' + entry['id'],
-                                      'playlist': {**playlist, 'index': entry.get('playlist_index') or number}})
+                flattened = collection_entries(executable, data, target['url'], playlist_end=entry_end)
+                if entry_end is not None:
+                    flattened = islice(flattened, entry_end)
+                for number, entry in enumerate(flattened, 1):
+                    if max_videos is not None and selected_positions >= max_videos and not scoped_retry:
+                        break
+                    inspected = number
+                    if isinstance(entry, dict) and re.fullmatch(r'[A-Za-z0-9_-]{11}', str(entry.get('id', ''))):
+                        candidate = {'url': 'https://www.youtube.com/watch?v=' + entry['id'],
+                                     'playlist': {**playlist, 'index': number if not parse_qs(urlsplit(target['url']).query).get('list') else entry.get('playlist_index') or number}}
+                        key = candidate['url'] if max_videos else candidate['url'] + '|' + str(playlist.get('id') or '')
+                        if key not in queue_keys:
+                            queue.append(candidate)
+                            queue_keys.add(key)
+                        selected_positions += 1
                     else:
-                        if target not in remaining_enumeration:
-                            remaining_enumeration.append(target)
+                        unavailable = True
+                        selected_positions += 1
                         manifest['items'].append({'key': target['url'] + '#' + str(number), 'status': 'unavailable',
                                                   'message': 'Playlist entry unavailable', 'exports': []})
+                if unavailable:
+                    retry = target.copy()
+                    if max_videos is not None:
+                        retry['entry_end'] = inspected
+                    remaining_enumeration.append(retry)
             else:
                 video_id = str(data.get('id', ''))
                 if not re.fullmatch(r'[A-Za-z0-9_-]{11}', video_id):
                     raise ValueError('Invalid video identity returned by yt-dlp')
-                queue.append({'url': 'https://www.youtube.com/watch?v=' + video_id, 'playlist': target.get('playlist') or {}})
+                candidate = {'url': 'https://www.youtube.com/watch?v=' + video_id, 'playlist': target.get('playlist') or {}}
+                key = candidate['url'] if max_videos else candidate['url'] + '|' + str(candidate['playlist'].get('id') or '')
+                if key not in queue_keys:
+                    queue.append(candidate)
+                    queue_keys.add(key)
+                    selected_positions += 1
         except (RuntimeError, ValueError) as exc:
-            remaining_enumeration.append(target)
+            retry = target.copy()
+            if max_videos is not None:
+                retry['entry_end'] = entry_end
+                selected_positions += entry_end
+            remaining_enumeration.append(retry)
             manifest['items'].append({'key': target['url'], 'status': 'failed', 'message': str(exc), 'exports': []})
-    queue = list({target['url'] + '|' + str(target['playlist'].get('id') or ''): target for target in queue}.values())
+    if max_videos is not None:
+        queue = queue[:max_videos]
     manifest['enumeration_targets'] = remaining_enumeration
     manifest['expanded_targets'] = queue
     checkpoint()
@@ -435,19 +570,29 @@ def run(args):
         paths = [root / entry['path'] for item in manifest['items'] if verified_exports(item, root)
                  for entry in item['exports'] if entry['path'].endswith('.json')]
         merged_path = root / ('subsmerge-' + run_id + '.json')
-        if not paths or merge_files(paths, root, merged_path):
+        markdown_path = merged_path.with_suffix('.md')
+        if not paths or merge_files(paths, root, merged_path, include_original=False,
+                                    markdown_output=markdown_path, text_only=text_only):
             manifest['merge_error'] = 'Current-run fusion failed or no successful transcript was available'
             exit_code = 2
         else:
             manifest['merged_output'] = str(merged_path.relative_to(root))
+            manifest['merged_markdown'] = str(markdown_path.relative_to(root))
     manifest['exit_code'] = exit_code
     checkpoint()
+    args.result.update(exit_code=exit_code, summary=counts,
+                       merged_json=str(root / manifest['merged_output']) if 'merged_output' in manifest else None,
+                       merged_markdown=str(root / manifest['merged_markdown']) if 'merged_markdown' in manifest else None)
     print('Summary: ' + json.dumps(counts))
     print('Manifest: ' + str(manifest_path))
     return exit_code
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    class ResultParser(argparse.ArgumentParser):
+        def error(self, message):
+            raise ValueError(message)
+
+    parser = ResultParser(description=__doc__)
     parser.add_argument('url', nargs='?')
     parser.add_argument('--input-file')
     parser.add_argument('--out-root')
@@ -458,16 +603,33 @@ def main():
     parser.add_argument('--process-all', action='store_true')
     parser.add_argument('--resume')
     parser.add_argument('--merge', action='store_true')
+    parser.add_argument('--text-only', action='store_true', help='With --merge, omit repeated segment text from combined outputs')
+    parser.add_argument('--max-videos', type=int, help='Select at most N source video positions (unavailable positions count)')
+    parser.add_argument('--json', action='store_true', help='Print one JSON result; send progress to stderr')
     parser.add_argument('--yt-dlp', default='yt-dlp')
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--version', action='version', version=VERSION)
     parser.add_argument('--subtitle-args', nargs=argparse.REMAINDER, default=[])
-    args = parser.parse_args()
+    json_output = '--json' in sys.argv[1:]
+    args = None
+    result = result_record()
     try:
-        return run(args)
+        args = parser.parse_args()
+        json_output = args.json
+        if json_output:
+            with redirect_stdout(sys.stderr):
+                exit_code = run(args)
+        else:
+            exit_code = run(args)
+        result = args.result
     except (ValueError, OSError, RuntimeError, KeyError, TypeError) as exc:
+        exit_code = 1
+        result = getattr(args, 'result', result)
+        result.update(exit_code=exit_code, error=str(exc))
         print('ERROR: ' + str(exc), file=sys.stderr)
-        return 1
+    if json_output:
+        print(json.dumps(result, ensure_ascii=False))
+    return exit_code
 
 if __name__ == '__main__':
     raise SystemExit(main())

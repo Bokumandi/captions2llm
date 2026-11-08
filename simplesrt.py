@@ -1,7 +1,8 @@
 """Validated SRT parsing and conservative cleanup of rolling subtitle windows.
 
-Derived from bindestriche/srt_fix (Unlicense), revision
-5b4442a8cdcae06c53545f4d0c99c3e624416919. See LICENSES/srt_fix-Unlicense.txt.
+Derived from https://github.com/bindestriche/srt_fix, revision
+5b4442a8cdcae06c53545f4d0c99c3e624416919. Upstream code: Unlicense;
+local modifications: MIT. See NOTICE.md and LICENSES/srt_fix-Unlicense.txt.
 """
 from __future__ import annotations
 
