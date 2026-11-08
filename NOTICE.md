@@ -1,59 +1,55 @@
-# Code provenance, licenses and AI assistance
+# Provenance, licenses and AI-assisted development
 
-## Modified upstream cleaner
+## Upstream cleaner
 
-Captions2LLM includes a modified copy of [bindestriche/srt_fix](https://github.com/bindestriche/srt_fix).
-The derived files are `simplesrt.py` and `srt_fixer_cli.py`. The original local
-copies matched upstream revision `5b4442a8cdcae06c53545f4d0c99c3e624416919` exactly:
+Captions2LLM includes a modified copy of
+[bindestriche/srt_fix](https://github.com/bindestriche/srt_fix), released under
+the **Unlicense**. The derived files are `simplesrt.py` and `srt_fixer_cli.py`.
+Their original local copies matched upstream revision
+`5b4442a8cdcae06c53545f4d0c99c3e624416919`:
 
-| Original file | Git blob at the matching revision |
+| Original file | Git blob at that revision |
 | --- | --- |
-| simplesrt.py | 282c90a13ae371ca9b5ebc7f9c015b35c4655787 |
-| srt_fixer_cli.py | 0a72e277b7b1bbefc9c2e67aa3e866cac66f1c89 |
+| `simplesrt.py` | `282c90a13ae371ca9b5ebc7f9c015b35c4655787` |
+| `srt_fixer_cli.py` | `0a72e277b7b1bbefc9c2e67aa3e866cac66f1c89` |
 
-The upstream code was released under the **Unlicense**. Its original notice is
-preserved in [LICENSES/srt_fix-Unlicense.txt](LICENSES/srt_fix-Unlicense.txt),
-Git blob `68a49daad8ff7e35068f2b7a97d643aab440eaec`.
-Captions2LLM's original contributions and local modifications are **MIT licensed**,
-copyright 2026 Bokumandi; see [LICENSE](LICENSE).
+The original notice is preserved in
+[LICENSES/srt_fix-Unlicense.txt](LICENSES/srt_fix-Unlicense.txt), Git blob
+`68a49daad8ff7e35068f2b7a97d643aab440eaec`.
 
-The locally maintained derivative adds strict SRT parsing, conservative rolling
-caption deduplication, manual-caption preservation, validated timestamps, atomic
-outputs and revised CLI behavior. The original upstream notice applies to its
-code; the MIT notice applies to local contributions. Attribution does not imply
-upstream review, endorsement or responsibility for Captions2LLM.
+Local changes add stricter SRT validation, conservative removal of rolling-caption
+repeats, preservation of manual captions and atomic file writes. Captions2LLM is
+an independent application incorporating this component; its repository was not
+created as a GitHub-network fork of the full upstream repository. Attribution
+does not imply upstream review or endorsement.
 
-## Repository relationship
+## Local contributions
 
-This is an independent application incorporating a modified upstream component,
-not a GitHub-network fork of the complete srt_fix repository. The copied source
-origin is declared above regardless of GitHub's repository badge. We did not import
-the complete upstream Git history. This avoids claiming either that the cleaner
-was created from scratch or that this repository has a network connection it lacks.
-See [GitHub's fork definition](https://docs.github.com/en/pull-requests/reference/forks)
-and [maintenance evidence](docs/MAINTENANCE.md).
+Captions2LLM's own contributions and local modifications are **MIT licensed**,
+copyright 2026 Bokumandi. See [LICENSE](LICENSE). The upstream notice remains
+applicable to the incorporated upstream code.
 
-The owner's historical download/merge wrappers were the initial local application
-sources; their imported hashes are recorded in [source-imports.json](source-imports.json).
-A byte match identifies matching source, not the historical acquisition method.
+The original local download and merge scripts are recorded with their import
+hashes in [source-imports.json](source-imports.json). Those records describe the
+imported files; a byte match establishes source identity, not how a historical
+copy was acquired. [Maintenance](docs/MAINTENANCE.md) records subsequent decisions
+and verification.
 
 ## AI-assisted development
 
-Captions2LLM's application code, modifications, tests and documentation were generated
-and reworked with **OpenAI Codex, using GPT-family models**, under the repository
-owner's direction. Parallel Codex agents were used for implementation and review.
-The upstream srt_fix component is credited separately: its authorship is not
-attributed to Codex. The origin of any AI assistance to the historical upstream
-project is unknown and is not asserted here.
+Application code, modifications, tests and documentation were generated and
+reworked with **OpenAI Codex, using GPT-family models**, under the repository
+owner's direction. Parallel Codex agents contributed to implementation and review.
+The upstream `srt_fix` authorship is credited separately and is not attributed
+to Codex.
 
-The owner commissioned and directed this work; no claim is made that the owner
-manually reviewed every generated line. Verification evidence consists of the
-recorded automated tests, independent agent reviews and specifically identified
-real runs, with their limits. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+Verification evidence consists of the tests, agent reviews and identified real
+runs recorded in maintenance, with their stated limits. AI assistance does not
+establish correctness by itself.
 
-## Other components and content
+## External tools and caption content
 
-yt-dlp, FFmpeg, Python and Deno are external runtime tools, not bundled in this
-repository or the source release. Their respective licenses and installation
-receipts remain with those installations. Downloaded captions retain their own
-provenance; the software license does not grant rights to third-party video text.
+Python, yt-dlp, FFmpeg and Deno are external tools, not bundled dependencies.
+Their licenses apply to their respective distributions. Downloaded captions
+retain their own provenance; the software licenses do not grant rights to
+third-party video text.

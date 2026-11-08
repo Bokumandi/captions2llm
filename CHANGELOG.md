@@ -7,6 +7,8 @@
 - Preserve legacy entry points, engine APIs, output names and JSON contracts.
 - Name new source release archives with the Captions2LLM prefix; historical
   published assets retain their names.
+- Clarify current-source installation, run-scoped batch preparation and report
+  workflows; separate current maintenance guidance from historical evidence.
 
 ## 0.3.0
 

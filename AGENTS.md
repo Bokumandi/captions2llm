@@ -14,5 +14,6 @@ local absolute paths or logs in Git. Use synthetic fixtures in tests.
 Do not install or update machine tools implicitly. Respect explicit publication
 authorization and never force-push. Run python verify.py before publishing.
 Use one writer per file when delegating work. Keep documentation proportional:
-README.md owns the command reference; docs/AGENT_GUIDE.md owns agent setup and
-operation; docs/MAINTENANCE.md owns decisions and verification.
+README.md owns the first-use path and command overview; docs/AGENT_GUIDE.md owns
+agent workflows and machine contracts; docs/MAINTENANCE.md separates current
+maintenance contracts and verification from dated historical records.

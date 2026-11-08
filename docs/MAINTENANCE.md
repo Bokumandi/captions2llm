@@ -1,23 +1,109 @@
-# Maintenance, provenance and verification
+# Maintenance contracts and verification
 
-## Product contract
+This section describes the current maintenance contract. The dated records under
+[Decision and verification history](#decision-and-verification-history) preserve
+earlier work; read them as history rather than current installation instructions.
 
-Captions2LLM prepares caption-derived text corpora for LLMs and agents through a
-Windows CLI. Whole playlists and public channel collections are primary inputs;
-combined JSON/Markdown are the primary exchange artifacts. It retrieves existing
-captions, not media, and is not an audio transcription or LLM inference service. Keep the PowerShell/CMD commands, standard-library Python helpers and
-historical `subsdown.v4` transcript fields compatible. `VERSION` owns the product
-version. `subsmerge_version: 2.0.0` is the retained merged-format marker;
-`product_version` identifies this product's implementation.
+## Current contracts
 
-README.md owns the command reference, docs/AGENT_GUIDE.md owns agent setup and
-operation, AGENTS.md routes agents, and this file owns
-decisions, verification evidence and maintenance history. This is the knowledge
-delta for the initial import and corrections; no empty wiki, separate rules tree
-or duplicated per-library documentation is needed. The README captures the
-repeatable download/resume/merge procedure without installing an additional skill.
+- Collect available YouTube captions only. Report unavailable captions and
+  incomplete collections explicitly; do not fabricate text or add an ASR fallback.
+- Default to automatic captions in the original language. Record caption origin,
+  language, translation metadata and source URLs.
+- Keep individual timestamped exports. Combined files and bounded reading plans
+  are derived views; do not overwrite source transcripts.
+- Preserve the public schemas: `subsdown.v4`, `subsdown.run.v1`,
+  `subsdown.result.v1`, `subsmerge.result.v1` and `subsbatch.*.v1`.
+  `subsmerge_version: 2.0.0` is a format marker; `VERSION` identifies the product.
+- Keep legacy `subsdown`, `subsmerge` and `subsbatch` entry points and Python import
+  APIs compatible with the unified `captions2llm` entry points.
+- With a manifest, index/prepare selects that run and its gaps. Without one, it
+  inventories exports present in the folder, potentially including earlier runs.
+- Verify source/reading-file hashes before reusing a reading plan or accepting a
+  report. Coverage is declared by the report's author; structural validation does
+  not certify the analysis. Use one report writer per plan and one download resume
+  per output tree.
+- Reuse installed tools. No implicit installation, model service, LLM upload or
+  dependency update belongs in normal processing.
+- Keep downloaded text, raw logs, credentials, local evidence and machine-specific
+  paths out of Git. Preserve the upstream notice and import receipts.
 
-## Source inventory and reuse decision — 2026-11-08
+## Check a change
+
+Use the smallest relevant checks while editing, then run the integrated offline
+gate before publication:
+
+```powershell
+python -X utf8 verify.py
+```
+
+The gate needs Windows, Python and both Windows PowerShell 5.1 and PowerShell 7.
+It checks actual launchers, synthetic downloads, cleaning, merge/index/batch
+contracts, recovery and release construction. CI runs it on Python 3.11 and 3.13.
+Network behavior requires a separate, explicitly identified real run.
+
+After testing, inspect the diff and record the commit/environment, result and
+remaining limits. Never weaken a valid assertion to obtain a passing test. For
+source releases, follow [RELEASING](RELEASING.md).
+
+## Verification record
+
+The runtime source at `bfa8b1fc18d144f93323dc7544a5ca8a455698e8` passed
+[Windows CI on Python 3.11 and 3.13](https://github.com/Bokumandi/captions2llm/actions/runs/42475706941).
+Local qualification ran 112 tests, with three platform-capability skips for
+symlink privileges and 8.3 aliases. The rename also verified archive integrity,
+old/new command parity and preservation of local files during relocation.
+
+A real collection provided 87 caption tracks from 89 requested videos. Its 50
+reading batches stayed below 30,000 characters; all source segments reconstructed
+exactly. The two export failures were recorded as gaps. The accepted sample
+report was a partial technical check, not a completed editorial analysis.
+
+Known limits: YouTube can hide or restrict entries; automatic captions and source
+language metadata can be inaccurate. The collection merger loads data in memory,
+and batch limits count characters rather than model tokens. A crash during output
+publication can leave recoverable files; preserve those files and inspect the
+manifest/status instead of deleting them based on their names.
+
+## Documentation refresh — 2026-11-08
+
+The README now follows installation, one download, the resulting files and a
+choice of reading modes. It distinguishes the current source tree from the older
+published release, and preparation of one manifest from a scan of an entire
+folder. The agent guide demonstrates the full batch/report workflow and labels
+its filled report example as fictional. Provenance remains visible in the README
+and detailed in NOTICE. Historical records below retain their original content,
+with heading levels adjusted to make their status clear.
+
+The fresh Astra high review returned CLEAR: the seven earlier findings were
+addressed, with no remaining P1/P2 findings. The coordinator verified 31 local
+links/anchors, parsed 16 PowerShell blocks and the JSON example, and executed the
+README and agent workflows in both PowerShell 5.1 and 7 against synthetic partial
+caption inputs. The examples retained run gaps and accepted only an explicitly
+partial technical report. The integrated `python -X utf8 verify.py` also exited 0
+on Python 3.13.2. No runtime, schema, test or product-version change was made.
+
+Requested routing: agent-guide writing GPT-6.1 Sol/high; independent editorial
+review GPT-6 Astra/high; coordinator-owned README, provenance, release guidance,
+maintenance integration, example execution and publication. Separate confirmed
+model identities and per-mission consumption were not exposed.
+
+## Documentation responsibilities
+
+The [README](../README.md) owns the first-use path and command overview.
+[AGENT_GUIDE](AGENT_GUIDE.md) owns executable agent workflows and machine-result
+contracts. [NOTICE](../NOTICE.md) owns detailed provenance and license scope;
+[RELEASING](RELEASING.md) owns publication. Keep [AGENTS](../AGENTS.md) short and
+route to these documents rather than duplicating them.
+
+## Decision and verification history
+
+The following records retain the facts, decisions and limits known at each stage.
+Earlier tool versions, test counts and statements about untested scenarios refer
+to those stages. Use the contracts and verification record above for current work.
+
+
+### Source inventory and reuse decision — 2026-11-08
 
 The owner requested an independent copy of the existing local subsdown v4 and
 subsmerge v2 scripts, debugging, incremental improvements and public publication
@@ -51,7 +137,7 @@ were read before implementation. Local code additionally needs conservative
 speech preservation, strict timestamps and atomic writes, so upstream patches
 alone are insufficient.
 
-## Decisions and failure mechanisms
+### Decisions and failure mechanisms
 
 - The original `$Args` parameters collided with PowerShell's automatic variable;
   argument loss was directly reproduced under PS5.1. Python subprocess argv now
@@ -73,7 +159,7 @@ alone are insufficient.
 - Normal Git, existing GitHub authentication and a dedicated public repository are
   used. No shared installation, global configuration or source project is changed.
 
-## Verification and limits
+### Verification and limits
 
 The local baseline tested Python 3.13.2, Windows PowerShell 5.1.26100.9711 and
 PowerShell 7.6.5. Synthetic regression suites cover cleaner/parser behavior,
@@ -98,7 +184,7 @@ Tool/site evolution can invalidate network behavior; versions are recorded on ea
 run. YouTube may expose several dubbed original tracks; metadata selects among
 them when possible. Human-translated manual tracks are not always identifiable.
 
-## Agent work and review
+### Agent work and review
 
 Requested routing for this batch: coordinator on its attached session; cleaner
 implementation GPT-6.1 Sol/high; merger implementation GPT-6.1 Sol/medium;
@@ -113,7 +199,7 @@ The independent review found original-language selection and interrupted-resume
 inventory defects; each was corrected with a corresponding regression. Review
 this document when the CLI, schema markers, staging or resume contracts change.
 
-## Initial acceptance result — 2026-11-08
+### Initial acceptance result — 2026-11-08
 
 The coordinator's integrated `python -X utf8 verify.py` completed successfully:
 56 tests, 55 passed and one Windows symlink-privilege skip. The independent
@@ -122,7 +208,7 @@ were addressed. The upstream license file was verified against its original Git
 blob. Source-publication inspection confirmed private local evidence and caches
 are ignored; the imported receipt JSON parses successfully.
 
-## Windows CI follow-up — 2026-11-08
+### Windows CI follow-up — 2026-11-08
 
 The first hosted Windows runs exposed a genuine short-path alias defect:
 `Path.resolve()` expanded the source root while candidate paths retained 8.3
@@ -144,7 +230,7 @@ source root. Lexical staging names are rejected before accepting an alias of the
 root; a deterministic mocked-junction regression covers this without requiring
 symlink privileges.
 
-## Agent setup documentation — 2026-11-08
+### Agent setup documentation — 2026-11-08
 
 The owner requested an agent-readable installation, dependency and operation guide.
 Added docs/AGENT_GUIDE.md and linked it from AGENTS.md and README.md. It separates
@@ -162,7 +248,7 @@ blocks parse, and the existing integrated gate passes 58 tests (two local
 platform-capability skips). No dependency was provisioned and no additional video
 was downloaded for this documentation change.
 
-## LLM-corpus Goal — 2026-11-08
+### LLM-corpus Goal — 2026-11-08
 
 The owner clarified the purpose: collect available transcripts from entire
 playlists/channels and create a large JSON/Markdown corpus for LLM analysis, with
@@ -258,7 +344,7 @@ CMD's special first-quoted-argument parsing. No assertion or required behavior
 was relaxed. The replacement archive must pass the full gate in that spaced path
 before release publication.
 
-## Offline index and bounded reading plans — 0.3.0
+### Offline index and bounded reading plans — 0.3.0
 
 The 0.3.0 contract adds a compact per-run index and an offline CLI for existing
 exports. The index includes track identity, available metadata, relative paths and
@@ -306,7 +392,7 @@ GPT-6.1 Terra/medium; independent review GPT-6 Astra/high. Requested configurati
 is recorded; separate confirmed model identifiers and token/cost totals were not
 exposed. Workers owned disjoint files and the coordinator ran integrated checks.
 
-## Source publication qualification — 2026-11-08
+### Source publication qualification — 2026-11-08
 
 Before the owner-authorized GitHub source update, the final installed 0.3.0
 implementation passed `python -X utf8 verify.py`: 106 tests, 103 passed and three
@@ -315,7 +401,7 @@ coverage, report-ownership and source-read-race regressions. Only this verificat
 record changed after the gate; no runtime or test source changed. GitHub CI remains
 a separate result to check on the published commit.
 
-## Batch test portability follow-up — 2026-11-08
+### Batch test portability follow-up — 2026-11-08
 
 The first hosted 0.3.0 source verification exposed three lexical path comparisons
 in the new batch tests. Windows runners expose temporary directories through 8.3
@@ -326,7 +412,7 @@ file preservation and single-object Unicode launcher assertions remain unchanged
 This is a test-harness correction with no runtime or requirement change. Hosted
 Python 3.11/3.13 verification is required to exercise the actual alias environment.
 
-## Captions2LLM naming and command surface — 0.4.0
+### Captions2LLM naming and command surface — 0.4.0
 
 The canonical product and repository name is Captions2LLM, at
 `Bokumandi/captions2llm`. The unified `captions2llm.py`, `.ps1` and `.cmd`
@@ -357,7 +443,7 @@ GPT-6 Astra/high. The coordinator owns integration, GitHub identity and the loca
 directory move. Confirmed model identities and per-mission cost were not separately
 exposed. Each write surface had one owner; the full gate ran after integration.
 
-### Rename acceptance — 2026-11-08
+#### Rename acceptance — 2026-11-08
 
 The source commit `d484e3e0a99eec032988d6613272a2aa88e90788` passed both hosted
 Windows/Python 3.11 and 3.13 jobs in [the renamed repository's CI](https://github.com/Bokumandi/captions2llm/actions/runs/42475522802).

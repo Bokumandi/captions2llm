@@ -1,274 +1,225 @@
-# Captions2LLM — YouTube text corpora for LLMs
+# Captions2LLM
 
-**Turn captioned YouTube videos, whole playlists and public channels into a corpus
-that an LLM or an agent can analyze.** Collect available automatic or manual
-captions, remove demonstrated rolling-caption redundancies, preserve sources and
-timestamps, then assemble **one JSON and one Markdown file for the collection**.
-Per-video files remain available for selective reading and subtitle editing.
+Collect existing captions from YouTube videos, playlists and public channels.
+Export Markdown and JSON with source URLs for LLM analysis, or split a large
+collection into reading batches. Captions2LLM runs locally on Windows; you or your
+own LLM/agent perform the analysis.
 
-The primary workflow is **video text → cleaned transcripts → LLM ingestion**.
-SRT export is a useful companion. The tool retrieves existing captions; it does
-not download video/audio, invent a missing transcript or run an LLM itself.
+The cleaner derives from [srt_fix](https://github.com/bindestriche/srt_fix)
+(Unlicense); Captions2LLM's own contributions are MIT licensed. Development used
+**OpenAI Codex with GPT-family models**. See [NOTICE](NOTICE.md) for attribution,
+source revisions and AI-development details.
 
-**Upstream credit:** the cleaner contains a modified copy of
-[bindestriche/srt_fix](https://github.com/bindestriche/srt_fix), originally released
-under the Unlicense. This independent application incorporates that derived
-component; it is not a GitHub-network fork of the complete upstream repository.
-The original notice is preserved. Local contributions and modifications are MIT
-licensed. See [NOTICE.md](NOTICE.md) for exact files, revision and license scope.
+## Quick start
 
-**AI-assisted development:** application code, modifications, tests and docs were
-generated and reworked with **OpenAI Codex using GPT-family models**, under the
-repository owner's direction. Upstream authorship is credited separately.
+### 1. Check the requirements
 
-## Start with a whole playlist or channel
+| Task | Requirements |
+| --- | --- |
+| Every command | Windows and Python 3.11 or 3.13 |
+| PowerShell/CMD launchers | PowerShell 5.1 or 7; CMD uses Windows PowerShell 5.1 |
+| Download captions | yt-dlp, FFmpeg and Deno for YouTube challenge support |
+| Clone this repository | Git |
 
-```powershell
-# Process the entire returned playlist; create combined JSON + Markdown.
-.\captions2llm.ps1 download "https://www.youtube.com/playlist?list=PLAYLIST_ID" -Merge
+Reuse existing tools. The examples below assume `python`, `yt-dlp`, `ffmpeg` and
+`deno` are available on PATH. For discovery and explicit executable paths, see
+[the setup guide](docs/AGENT_GUIDE.md#find-the-required-tools). Local indexing,
+merging and batch preparation use Python's standard library and need no network.
 
-# Process the public channel, including its returned video/short/live upload tabs.
-# TextOnly keeps a single copy of each transcript's text in the combined JSON.
-.\captions2llm.ps1 download "https://www.youtube.com/@Creator" -Merge -TextOnly
+### 2. Get the current source
 
-# Optional small trial. There is NO automatic collection-size limit by default.
-.\captions2llm.ps1 download "https://www.youtube.com/@Creator" -MaxVideos 10 -Merge -TextOnly
+These instructions describe the **0.4.0 source tree**. As of November 8, 2026,
+the latest [packaged release](https://github.com/Bokumandi/captions2llm/releases)
+is 0.2.0, which predates the unified commands and reading plans. Use the current
+checkout for this workflow. If you install an older release, follow its bundled
+README instead.
 
-# Agent workflow: exactly one final JSON object on stdout; progress on stderr.
-.\captions2llm.ps1 download -InputFile .\links.txt -Merge -TextOnly -Json
-```
-
-Replace placeholders with real public YouTube URLs. A channel root selects the
-channel's public uploads as enumerated by yt-dlp; an explicit `/videos`, `/shorts`
-or `/streams` tab restricts scope to that tab. Public `@handle`, `/channel/ID`,
-`/user/name` and `/c/name` forms are accepted. Authenticated account feeds,
-subscriptions and private libraries are not supported.
-
-There is **no arbitrary default cap**. The request covers every entry returned
-for the selected collection, subject to public access and caption availability.
-`-MaxVideos N` is an explicit scope limit, counting selected source positions
-including unavailable entries; it is retained on resume. It is not pagination or
-an assertion of the channel's absolute completeness. YouTube may hide content.
-Large collections take time: the downloader is sequential, not a parallel crawler.
-
-For installation, dependency discovery and agent operation, start with the
-[agent guide](docs/AGENT_GUIDE.md). It is linked from [AGENTS.md](AGENTS.md).
-
-## Requirements and release installation
-
-- Windows, Python **3.11 or 3.13**, and PowerShell **5.1 or 7** for launchers.
-- For downloading: `yt-dlp`, FFmpeg and the JavaScript runtime required by yt-dlp
-  for YouTube challenges. See [official dependencies](https://github.com/yt-dlp/yt-dlp#dependencies).
-- Local cleaning/merging only needs Python. Helpers use the standard library:
-  no `pip install`, npm, API key, model weights or server is required.
-
-Use a checkout or extract the source ZIP from [Releases](https://github.com/Bokumandi/captions2llm/releases).
-Keep its directory structure, including `VERSION`, modules, launchers and license
-notices. A source release fixes a version/commit and supplies SHA-256 checksums;
-it is not a standalone executable and does not bundle third-party dependencies.
-Python software can have releases even when external tools are installed separately.
-
-Reuse compatible shared installations. Supply explicit paths with `-Python`,
-`-YtDlp` and `-FFmpeg` when needed. There is no automatic installation or update.
-Use `captions2llm.cmd` for the Windows PowerShell 5.1 wrapper, or
-`pwsh -File .\captions2llm.ps1 download ...` for PowerShell 7. No global PATH change is required.
-
-## Choose the right corpus representation
-
-| Output | Best use | Text and provenance |
-| --- | --- | --- |
-| Per-video `transcript.json` | Agent reads selected videos or timestamps | Structured video/track metadata, plain text and timed segments |
-| Per-video `transcript.md` | Read one video in an LLM/chat | Source URL, caption labels and timestamped text |
-| Combined JSON from `-Merge` | Store, exchange and programmatically inspect a collection | `items` with source identity, caption provenance, text and segments; no embedded duplicate original payload |
-| Combined JSON with `-TextOnly` | Compact LLM ingestion | Text once per item; preserves identity, language, source/translation metadata and original segment count; omits segment bodies |
-| Combined Markdown | Read/share a collection as text | Explicit video boundaries, source URLs and caption provenance; timestamps in normal mode, plain text in TextOnly mode |
-| Per-video `transcript.srt` | Subtitle editing or timed interchange | Clean validated subtitles |
-
-A large single JSON/MD makes sense as a **storage and exchange artifact**. It does
-not make an unlimited corpus fit into an LLM's context window. Use the combined
-Markdown/text-only profile when it fits; otherwise use `prepare` to create bounded reading parts from the per-video files.
-There is no tokenizer, embedding index, semantic search engine or model-specific
-context-budget guarantee built into Captions2LLM.
-
-The normal combined JSON intentionally contains both `text` and timed `segments`:
-agents should ingest one representation for a given task. `-TextOnly` removes that
-remaining repeated transcript text. Original per-video timestamped files remain.
-Overlapping input collections may contain the same video more than once; this is
-not an incremental global library cache or semantic duplicate detector.
-
-## Other download options
+In PowerShell, from a short directory of your choice:
 
 ```powershell
-.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Merge -OutRoot .\subsdown_output
-.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Language fr -Merge
-.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Manual -Language fr -Merge
-.\captions2llm.ps1 download "https://www.youtube.com/watch?v=VIDEO_ID&list=PLAYLIST_ID" -CurrentVideoOnly
-.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Language "en.*,fr.*" -Merge
+git clone https://github.com/Bokumandi/captions2llm.git
+Set-Location captions2llm
+.\captions2llm.ps1 --version
 ```
 
-`links.txt` contains one video, playlist or channel URL per line; blank lines and
-`#` comments are ignored. Quote URLs containing `&`. Default captions are automatic
-in the original language. Original-track evidence takes priority over dubbed audio
-metadata; missing or ambiguous originals are reported without a language fallback.
-`-Manual` selects uploaded captions; `-Language` can explicitly request a different
-language. Identifiable translations are labeled. Human translations may not be
-identifiable from metadata. Live chat is not an ordinary speech transcript.
+If you already have a checkout, use it instead of cloning over it. There is no
+`pip install`, build step or API key to configure.
 
-Legacy subtitle arguments are retained: `--write-subs`, `--no-write-subs`,
-`--write-auto-subs`, `--no-write-auto-subs`, `--sub-langs`, `--sub-format` and
-`--convert-subs srt`. Arbitrary yt-dlp execution/output/download flags are refused.
-`-ProcessAllDownloadedSubtitles` remains accepted; explicitly selected tracks are
-already exported. `-KeepWork` retains raw intermediates; failed work is retained.
+### 3. Download a playlist
 
-## Outputs, partial results and resume
+Replace `PLAYLIST_ID` with your playlist's ID. This stores the captions outside
+the source checkout and creates a compact combined corpus:
+
+```powershell
+$Run = & .\captions2llm.ps1 download "https://www.youtube.com/playlist?list=PLAYLIST_ID" -OutRoot ..\captions-output -Merge -TextOnly -Json | ConvertFrom-Json
+$DownloadExit = $LASTEXITCODE
+if ($DownloadExit -eq 1) { throw "Download failed: $($Run.error)" }
+$Run.summary
+$Run.merged_markdown
+```
+
+Open the file named by `merged_markdown` to read the combined text. Each caption
+track also has its own `transcript.md`, `transcript.json` and `transcript.srt`;
+these individual files retain timestamps. `-TextOnly` reduces repetition in the
+combined files and leaves the individual exports intact.
+
+Exit **0** means the selected scope completed. Exit **2** means some captions or
+outputs are missing: keep the successful files and inspect `$Run.manifest_path`.
+A merged output can be absent, so check its returned path before opening it.
+The default is **automatic captions in the original language**, with no silent
+fallback to another language.
+
+## Choose what to read
+
+| Need | Use |
+| --- | --- |
+| Read or analyze one video | Its individual `transcript.md` |
+| Work with timestamps or structured metadata | Its individual `transcript.json` |
+| Edit subtitles | Its individual `transcript.srt` |
+| Read a small collection together | Combined Markdown from `download -Merge -TextOnly` |
+| Inventory sources and missing captions | The compact index at `$Run.index_json` or `$Run.index_markdown` |
+| Analyze a collection in separate LLM contexts | A reading plan from `prepare` |
+
+The index contains metadata and file references, not transcript bodies. A combined
+corpus is useful for storage and exchange; choose batches when it is too large
+to read in one context.
+
+## Prepare reading batches
+
+### Prepare this download run
+
+Pass the run's manifest to select its exports and retain its missing-caption
+records. Continue from `$Run` above:
+
+```powershell
+$Prepared = & .\captions2llm.ps1 prepare $Run.output_root -Manifest $Run.manifest_path -MaxChars 30000 -Json | ConvertFrom-Json
+if (-not $Prepared.plan_path) { throw "Preparation failed: $($Prepared.error)" }
+$PlanPath = $Prepared.plan_path
+Get-Content -LiteralPath $Prepared.instructions -Raw -Encoding UTF8
+.\captions2llm.ps1 status $PlanPath -Json
+```
+
+Each batch has a Markdown reading file and a JSON report template. Read one batch,
+copy its template to a separate working file, fill in what you actually read and
+found, then submit it with `accept-report`. See the [complete report
+workflow](docs/AGENT_GUIDE.md#complete-a-batch-report) for file selection, a filled
+example and acceptance commands.
+
+Save the report before starting another batch in a fresh context. Build the final
+synthesis from those reports and reopen source passages as needed.
+
+The default limit is **30,000 characters per reading file**, including headings
+and timestamps. It measures characters rather than model tokens; leave room for
+your prompt and response. A caption track stays together when it fits. Longer
+tracks are split into consecutive passages without deleting text. Different
+language tracks remain separate; overlapping videos are not semantically deduplicated.
+
+### Prepare every export in a folder
+
+Without a manifest, `prepare` scans all transcript exports in the folder,
+including earlier runs. It cannot establish which requested videos are missing.
+Use this mode when the whole folder is intentionally your corpus:
+
+```powershell
+.\captions2llm.ps1 prepare ..\captions-output -MaxChars 30000 -Json
+```
+
+## Download options and recovery
+
+Use a video URL, playlist URL or public channel URL as the `download` input.
+Channel paths ending in `/videos`, `/shorts` or `/streams` restrict the selected
+upload tab. A watch URL containing `list=` selects the playlist unless you pass
+`-CurrentVideoOnly`. Quote URLs containing `&`.
+
+| Option | Purpose |
+| --- | --- |
+| `-Merge` | Create combined JSON and Markdown for the current run |
+| `-TextOnly` | With `-Merge`, keep transcript text once and omit segment bodies in combined outputs |
+| `-Language fr` | Request French captions explicitly |
+| `-Manual` | Select uploaded captions instead of automatic captions |
+| `-InputFile .\links.txt` | Read one URL per line; ignore blank lines and `#` comments |
+| `-MaxVideos 10` | Select at most ten source positions, including unavailable entries |
+| `-OutRoot PATH` | Choose the output folder; keep its absolute path at most 105 characters |
+| `-KeepWork` | Retain raw working files for diagnosis |
+| `-Json` | Emit one JSON result on stdout; progress goes to stderr |
+
+Collections have no default size cap. They cover the public entries returned by
+YouTube/yt-dlp, subject to access and caption availability. Downloads run sequentially.
+Automatic captions can contain errors; identified translations are labeled.
+
+To retry missing or failed work, use the saved manifest. Completed, hash-verified
+exports are reused:
+
+```powershell
+.\captions2llm.ps1 download -Resume $Run.manifest_path -Merge -TextOnly -Json
+```
+
+Resume keeps the saved input, language and scope; do not add selection flags.
+Run one resume per output tree and one report writer per plan at a time.
+
+## Where the files go
 
 ```text
-subsdown_output/
+captions-output/
   Channel/Collection [ID]/VIDEO_ID-language-kind/
-    transcript.srt
-    transcript.md
-    transcript.json
-  .runs/RUN_ID.json
-  .indexes/INDEX_ID/
-  subsmerge-RUN_ID.json
-  subsmerge-RUN_ID.md
+    transcript.md, transcript.json, transcript.srt
+  .runs/RUN_ID.json                  # download scope, results and recovery
+  subsindex-RUN_ID.json, .md          # automatic download index
+  subsmerge-RUN_ID.json, .md          # download -Merge
+  .indexes/INDEX_ID/index.json, .md   # separate index command
+  .batches/PLAN_ID/                  # prepare command
+    plan.json, index.json, index.md, instructions.md
+    batch-ID.md, batch-ID.report.json
+    reports/batch-ID/                # accepted reports
 ```
 
-Each per-track three-file bundle is published by one directory rename. A new run
-creates unique outputs instead of silently overwriting earlier exports.
-The manifest records requested scope, tool versions, success/unavailable/failure
-counts, relative export paths and hashes. Each run also creates a compact JSON and
-Markdown index (`index_json` and `index_markdown` in the result), including
-coverage gaps and track metadata without transcript bodies. Ingestion means **available caption text**:
-a missing or restricted caption track becomes a reported gap, not fabricated text.
+Names shown together denote separate files. Commands return their exact paths.
+New runs and plans use unique destinations; original exports are preserved.
+
+## Command reference
+
+| Command | Operation |
+| --- | --- |
+| `download URL` | Collect captions, individual exports and an index; optionally merge |
+| `merge FOLDER` | Merge existing exports in a folder, including earlier runs |
+| `index FOLDER` | Create a compact inventory of existing exports |
+| `prepare FOLDER` | Create bounded reading files and report templates |
+| `status PLAN` | Check batch progress and source integrity |
+| `accept-report PLAN REPORT` | Validate report structure and references, then render Markdown |
+
+Use `python captions2llm.py COMMAND --help` for each command's arguments. Python
+uses `--kebab-case`; Windows launchers accept the PowerShell spellings shown above.
+For example:
 
 ```powershell
-.\captions2llm.ps1 download -Resume .\subsdown_output\.runs\RUN_ID.json -Merge -TextOnly -Json
+.\captions2llm.ps1 merge ..\captions-output -Output ..\corpus.json -MarkdownOutput ..\corpus.md -TextOnly -Json
+python captions2llm.py prepare ..\captions-output --max-chars 30000 --json
 ```
 
-Use the exact printed/reported manifest path. Input, language and collection scope
-are fixed on resume; the combined output profile can be selected anew. Complete
-hash-verified items are reused without fetching their metadata again. Changed,
-missing and failed items are retried. Prior successes survive repeated interruptions.
-Run one resume per output tree at a time. Keep OutRoot at most 105 characters.
+Standalone `merge` includes the original JSON payload by default. Use `-NoOriginal`
+to retain timed segments without it, or `-TextOnly` to keep only one transcript
+body. `-FailOnError` rejects a partial merge; `-Overwrite` explicitly replaces
+existing derived outputs. Source transcripts are protected. The separate cleaner
+accepts `python srt_fixer_cli.py source.srt -o cleaned.srt`.
 
-Downloader exit codes: **0** complete selected scope, **2** partial/unavailable,
-**1** fatal input/setup failure. Exit 2 can accompany a useful JSON/MD subset;
-read the report/manifest before claiming coverage. With `-Json`, stdout is one
-structured result containing exit code, manifest and corpus locations; progress
-is on stderr. Direct Python uses `--json` and `--kebab-case` options.
+Exit codes differ by operation; see the [agent result contract](docs/AGENT_GUIDE.md#result-contracts-and-exit-codes).
+An accepted report records the author's declared coverage; it does not independently
+verify the analysis. `status` detects missing or modified source/reading files.
 
-## Index and prepare offline reading batches
+## Compatibility and further help
 
-```powershell
-python captions2llm.py index .\subsdown_output --json
-python captions2llm.py prepare .\subsdown_output --max-chars 30000 --json
-python captions2llm.py status $PlanPath --json
-python captions2llm.py accept-report $PlanPath $ReportPath --json
-```
+All `subsdown`, `subsmerge` and `subsbatch` entry points remain available in Python,
+PowerShell and CMD. Their schemas, import APIs and output names are unchanged.
+The default output folder is still `subsdown_output` when `-OutRoot` is omitted.
+Existing manifests and reading plans remain usable.
 
-`index FOLDER` inventories existing per-track exports without downloading or
-embedding transcripts. `prepare FOLDER` writes a reading plan, bounded Markdown
-parts and a JSON report template. Both accept `--manifest FILE` to use a run
-manifest and `--output DIR` for a new output directory. The default locations
-are unique directories under `.indexes` and `.batches`; existing source files are
-not changed. Use paths returned by the command, rather than guessing IDs.
+- [Agent guide](docs/AGENT_GUIDE.md): tool discovery, complete report workflow and troubleshooting.
+- [Maintenance](docs/MAINTENANCE.md): current contracts, verification and historical decisions.
+- [Release procedure](docs/RELEASING.md): build, verify and publish source assets.
+- [Changelog](CHANGELOG.md) and [provenance/licensing](NOTICE.md).
 
-The default `--max-chars 30000` is a character budget for each batch reading file,
-including its headings and citations. It is not a model-token budget and excludes
-the prompt and model response. A whole caption track is kept together when it fits;
-different languages of the same video remain separate items,
-otherwise consecutive timed segments, or fragments of an oversized cue, retain
-the source text without semantic deduplication. Review the plan and sources before
-analysis. No model is invoked, and local reprocessing needs no network or installs.
-
-Set `$PlanPath` from the returned `plan_path`. Copy the appropriate template named
-in `plan.json` to a separate `$ReportPath`; keep the original template unchanged
-because its hash is verified on resume. Fill the copy after analysis and run `accept-report`
-with the plan and report paths. It validates coverage and writes an accepted
-Markdown report; `--overwrite` permits replacing that derived report. `status`
-checks the plan's coverage and source hashes and reports `pending`, `partial`,
-`declared_complete` or `invalidated`. A declared report is an operator declaration,
-not proof that an LLM understood the material. `--json` produces a structured
-machine result; use `python captions2llm.py prepare --help` and the other
-subcommands' `--help` for their arguments.
-
-Windows launchers expose the same operations. For example:
-
-```powershell
-.\captions2llm.ps1 prepare .\subsdown_output -MaxChars 30000 -Json
-.\captions2llm.ps1 accept-report $PlanPath $ReportPath -Json
-```
-
-Use `captions2llm.cmd` for the Windows PowerShell wrapper. Run one report writer per
-plan at a time; accepted report replacement requires explicit `-Overwrite`.
-
-Offline commands return **0** on success and **2** for invalid input, preparation
-failure or partial index/preparation coverage. A partial result can still contain
-usable output paths; inspect `gap_count`, `error_count` and `enumeration_pending`.
-`status` returns the state of each batch, including invalidation, in its result.
-
-## Merge existing collections or clean local SRT
-
-```powershell
-# Full legacy JSON export (includes original payload by default for compatibility).
-.\captions2llm.ps1 merge .\subsdown_output -Output .\combined.json -Pretty
-
-# Compact corpus plus one combined Markdown; suitable for LLM ingestion.
-.\captions2llm.ps1 merge .\subsdown_output -Output .\corpus.json -MarkdownOutput .\corpus.md -TextOnly -Json
-
-# Retain timed segments but omit the embedded original object.
-.\captions2llm.ps1 merge .\subsdown_output -Output .\timed.json -NoOriginal -FailOnError
-
-python srt_fixer_cli.py source.srt -o cleaned.srt
-python srt_fixer_cli.py -idir .\raw -odir .\clean
-python srt_fixer_cli.py source.srt -o cleaned.srt --manual
-```
-
-Separate merge/cleanup needs no network. Standalone merger preserves the historical
-JSON default; automatic `download -Merge` omits embedded original payloads.
-`-Overwrite` / `--overwrite` is required to replace an output; source files are
-protected. Merger exit codes: **0** dataset written (inspect `error_count` for
-non-strict partial reads), **2** input/output error, **3** strict read failure,
-**4** no usable transcript. `-IncludeAllJson` explicitly allows generic JSON.
-Staging and already-merged datasets are excluded.
-
-The cleaner derives from srt_fix but uses more conservative rules: it removes
-shared multiword lines only from overlapping advancing caption windows. Exact
-repeated phrases, separated speech and short cues are retained. Manual mode
-preserves every cue/text line and normalizes formatting. Empty/malformed inputs
-and invalid timestamps are rejected. Valid overlaps are retained rather than
-inventing timings.
-
-## Compatibility
-
-The previous `subsdown`, `subsmerge` and `subsbatch` entry points (each in
-`.py`, `.ps1` and `.cmd` forms) remain available, as do the existing
-Python engine import APIs. The `subsdown_output` default, `subsmerge-` and
-`subsindex-` output names, and JSON schema identifiers and fields are unchanged.
-Use the canonical `captions2llm` entry points for new integrations. For an
-existing checkout or script, update the remote and paths deliberately after
-checking consumers; a local filesystem alias can preserve old paths during migration.
-Previously published release assets keep their original names.
-
-## Verification, integration and releases
-
-```powershell
-python verify.py
-```
-
-The offline gate uses synthetic captions and fake download processes; CI runs
-Windows/Python 3.11 and 3.13 with both PowerShell versions. Read
-[maintenance evidence and limits](docs/MAINTENANCE.md) for actual network and
-batch tests. Whole-channel behavior is based on public enumeration, not a promise
-that every hidden/private/deleted item can be recovered. Collection manifests and
-merges are held in memory; checkpoint rewriting and large corpus memory costs have
-not been qualified as a production-scale crawler benchmark.
-
-Agents can call the CLI, parse `-Json`/`--json`, inspect manifest/exit status and read
-per-video or combined outputs. This is a CLI integration contract, not an MCP
-server or a hosted service. No automatic LLM upload or inference takes place.
-See the [agent guide](docs/AGENT_GUIDE.md) and [release procedure](docs/RELEASING.md).
-
-[Changelog](CHANGELOG.md) · [Code/AI provenance](NOTICE.md) · [MIT](LICENSE) ·
-[Upstream Unlicense](LICENSES/srt_fix-Unlicense.txt)
+Captions2LLM retrieves available captions, not audio or video. It does not transcribe
+missing captions or call an LLM. `python verify.py` runs the offline test suite;
+results and limits are recorded in maintenance. Software licenses are
+[MIT](LICENSE) for local contributions and [Unlicense](LICENSES/srt_fix-Unlicense.txt)
+for the upstream cleaner; third-party caption rights are separate.
