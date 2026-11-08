@@ -28,7 +28,7 @@ class DownloaderTests(unittest.TestCase):
         self.temp.cleanup()
     def cli(self, extra=(), expected=0, shell=None):
         if shell == 'cmd':
-            command = ['cmd.exe', '/c', str(ROOT/'subsdown.cmd')]
+            command = ['cmd.exe', '/d', '/c', 'subsdown.cmd']
         elif shell:
             command = [shell,'-NoProfile','-NonInteractive','-File',str(ROOT/'subsdown.ps1')]
         else:
@@ -37,7 +37,7 @@ class DownloaderTests(unittest.TestCase):
             command += ['-Python',sys.executable,'-YtDlp',str(FAKE),'-FFmpeg',str(FAKE),'-OutRoot',str(self.output)]
         else:
             command += ['--yt-dlp',str(FAKE),'--ffmpeg',str(FAKE),'--out-root',str(self.output)]
-        result = subprocess.run(command+list(extra),capture_output=True,text=True,encoding='utf-8',errors='replace')
+        result = subprocess.run(command+list(extra),capture_output=True,text=True,encoding='utf-8',errors='replace',cwd=ROOT)
         self.assertEqual(result.returncode,expected,result.stdout+'\n'+result.stderr)
         return result
     def manifest(self):

@@ -249,3 +249,11 @@ synthetic-video case writes and checks real aggregate files, using mocked networ
 metadata and publication inputs. The independent review returned CLEAR. Final
 archive extraction and hosted CI are release acceptance steps, recorded with the
 published release rather than inferred from these local results.
+
+The first extracted-archive gate found a CMD test-harness quoting error for an
+absolute batch path containing spaces. The runtime launchers were unchanged;
+the test now invokes `cmd /d /c subsdown.cmd` with the extracted source directory
+as its working directory, matching the documented manual workflow and avoiding
+CMD's special first-quoted-argument parsing. No assertion or required behavior
+was relaxed. The replacement archive must pass the full gate in that spaced path
+before release publication.
