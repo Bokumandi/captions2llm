@@ -314,3 +314,14 @@ local platform-capability skips. This full gate includes the final copied-manife
 coverage, report-ownership and source-read-race regressions. Only this verification
 record changed after the gate; no runtime or test source changed. GitHub CI remains
 a separate result to check on the published commit.
+
+## Batch test portability follow-up — 2026-11-08
+
+The first hosted 0.3.0 source verification exposed three lexical path comparisons
+in the new batch tests. Windows runners expose temporary directories through 8.3
+aliases while the CLI correctly returns canonical paths. Normalize both sides in
+report/output identity assertions and in the source-race injection condition. The
+race test still requires the mutation to occur and preparation to reject it; user
+file preservation and single-object Unicode launcher assertions remain unchanged.
+This is a test-harness correction with no runtime or requirement change. Hosted
+Python 3.11/3.13 verification is required to exercise the actual alias environment.

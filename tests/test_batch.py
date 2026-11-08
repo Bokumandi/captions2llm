@@ -152,7 +152,7 @@ class BatchTests(unittest.TestCase):
                 if existing == "accepted-with-user-file":
                     completed, result = self.cli("accept-report", plan_path, report_path)
                     self.assertEqual(completed.returncode, 0, completed.stderr)
-                    self.assertEqual(Path(result["report_json"]).parent, target)
+                    self.assertEqual(Path(result["report_json"]).parent.resolve(), target.resolve())
                 else:
                     target.mkdir(parents=True)
                 sentinel = target / "user-original.txt"
@@ -244,7 +244,7 @@ class BatchTests(unittest.TestCase):
         mutated = []
 
         def mutate_before_normalization_hash(path):
-            if Path(path) == source and not mutated:
+            if Path(path).resolve() == source.resolve() and not mutated:
                 source.write_bytes(changed)
                 mutated.append(True)
             return digest(path)
@@ -512,7 +512,7 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(len(completed.stdout.strip().splitlines()), 1)
                 result = json.loads(completed.stdout)
                 self.assertEqual(result["item_count"], 1)
-                self.assertEqual(Path(result["plan_path"]), output / "plan.json")
+                self.assertEqual(Path(result["plan_path"]).resolve(), (output / "plan.json").resolve())
                 missing = subprocess.run(command + ["-Python", "missing-synthetic-executable-19483"],
                                          cwd=ROOT, capture_output=True, encoding="utf-8")
                 self.assertEqual(missing.returncode, 2)
