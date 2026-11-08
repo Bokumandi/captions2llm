@@ -8,7 +8,8 @@ historical `subsdown.v4` transcript fields compatible. `VERSION` owns the produc
 version. `subsmerge_version: 2.0.0` is the retained merged-format marker;
 `product_version` identifies this product's implementation.
 
-README.md owns user procedures, AGENTS.md routes contributors, and this file owns
+README.md owns the command reference, docs/AGENT_GUIDE.md owns agent setup and
+operation, AGENTS.md routes agents, and this file owns
 decisions, verification evidence and maintenance history. This is the knowledge
 delta for the initial import and corrections; no empty wiki, separate rules tree
 or duplicated per-library documentation is needed. The README captures the
@@ -140,3 +141,21 @@ The narrow follow-up review also checked a staging junction resolving back to th
 source root. Lexical staging names are rejected before accepting an alias of the
 root; a deterministic mocked-junction regression covers this without requiring
 symlink privileges.
+
+## Agent setup documentation — 2026-11-08
+
+The owner requested an agent-readable installation, dependency and operation guide.
+Added docs/AGENT_GUIDE.md and linked it from AGENTS.md and README.md. It separates
+source checkout, existing shared-tool discovery, explicit dependency provisioning,
+offline verification and authorized network retrieval. It covers batches, original
+language, manual tracks, merge/resume, exit codes, result interpretation and error
+recovery. Upstream Python, yt-dlp/EJS, FFmpeg and Deno documentation was read for
+dependency instructions. No runtime behavior, installer or dependency changed.
+The existing README remains the full command reference; the new guide owns setup
+and agent workflow, avoiding a second competing option specification. This narrow
+documentation task is sequential because its edits share the same routing surface.
+
+Guide verification: local Markdown targets resolve, all five PowerShell example
+blocks parse, and the existing integrated gate passes 58 tests (two local
+platform-capability skips). No dependency was provisioned and no additional video
+was downloaded for this documentation change.

@@ -7,6 +7,9 @@ file for reading or LLM processing. Video and audio are never requested.
 Windows PowerShell 5.1 and PowerShell 7 launchers are supported. The Python helpers
 use only the standard library; no Python package installation is needed.
 
+For agent-driven installation, dependency discovery and operation, start with the
+[agent operations guide](docs/AGENT_GUIDE.md).
+
 ## Requirements
 
 - Windows with Python **3.11 or 3.13**, `yt-dlp`, and FFmpeg available on `PATH`.

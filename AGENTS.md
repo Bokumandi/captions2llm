@@ -1,6 +1,7 @@
-# Subsdown contributor router
+# Subsdown agent router
 
-Read README.md and docs/MAINTENANCE.md before changing behavior.
+For installation or operation, read [docs/AGENT_GUIDE.md](docs/AGENT_GUIDE.md) first.
+For code changes, read README.md and docs/MAINTENANCE.md before changing behavior.
 This repository contains Windows launchers and Python helpers for subtitles only.
 Keep legacy command entry points and the documented JSON export fields compatible.
 VERSION is the single source of the product version. Keep active documentation,
@@ -11,4 +12,5 @@ local absolute paths or logs in Git. Use synthetic fixtures in tests.
 Do not install or update machine tools implicitly. Respect explicit publication
 authorization and never force-push. Run python verify.py before publishing.
 Use one writer per file when delegating work. Keep documentation proportional:
-README.md owns usage; docs/MAINTENANCE.md owns decisions and verification.
+README.md owns the command reference; docs/AGENT_GUIDE.md owns agent setup and
+operation; docs/MAINTENANCE.md owns decisions and verification.
