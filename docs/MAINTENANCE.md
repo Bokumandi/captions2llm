@@ -2,7 +2,7 @@
 
 ## Product contract
 
-Subsdown prepares caption-derived text corpora for LLMs and agents through a
+Captions2LLM prepares caption-derived text corpora for LLMs and agents through a
 Windows CLI. Whole playlists and public channel collections are primary inputs;
 combined JSON/Markdown are the primary exchange artifacts. It retrieves existing
 captions, not media, and is not an audio transcription or LLM inference service. Keep the PowerShell/CMD commands, standard-library Python helpers and
@@ -325,3 +325,34 @@ race test still requires the mutation to occur and preparation to reject it; use
 file preservation and single-object Unicode launcher assertions remain unchanged.
 This is a test-harness correction with no runtime or requirement change. Hosted
 Python 3.11/3.13 verification is required to exercise the actual alias environment.
+
+## Captions2LLM naming and command surface — 0.4.0
+
+The canonical product and repository name is Captions2LLM, at
+`Bokumandi/captions2llm`. The unified `captions2llm.py`, `.ps1` and `.cmd`
+entry points route `download`, `merge`, `index`, `prepare`, `status` and
+`accept-report` to the existing engines. Legacy entry points and imports remain
+compatible; JSON contracts and output names are intentionally unchanged. New
+release archives use the Captions2LLM prefix; historical release assets do not
+change. Local path migration can use a filesystem alias after checking existing
+consumers; machine-specific paths are not part of the repository contract.
+
+The coordinator's fresh `python -X utf8 verify.py` passed 112 tests (109 passed,
+three local platform-capability skips) on Python 3.13.2. This includes complete
+canonical/legacy workflows through Python, PowerShell 5.1/7 and CMD in a copied
+distribution with spaces and Unicode, external working directories, tool-option
+hashtable splatting and named/mixed report arguments. Local documentation links
+and PowerShell parsing checks also pass. Only this verification record changed
+after the gate; no runtime or test code changed. Hosted Python 3.11/3.13 and the
+actual machine/repository relocation remain separate acceptance checks.
+
+Two forwarding defects found by independent review were corrected and regression
+tested: PowerShell splat/Boolean tokens and reordered named report parameters.
+Legacy launchers, schemas, importer receipts and license notices remain intact;
+the review returned CLEAR. No dependency or implicit provisioning is introduced.
+
+Requested routing: command implementation GPT-6.1 Sol/high; compatibility tests
+GPT-6.1 Sol/high; documentation GPT-6.1 Terra/medium; independent migration review
+GPT-6 Astra/high. The coordinator owns integration, GitHub identity and the local
+directory move. Confirmed model identities and per-mission cost were not separately
+exposed. Each write surface had one owner; the full gate ran after integration.

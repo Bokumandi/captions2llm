@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Rename the product Captions2LLM and add unified Python, PowerShell and CMD
+  entry points for download, merge and offline reading operations.
+- Preserve legacy entry points, engine APIs, output names and JSON contracts.
+- Name new source release archives with the Captions2LLM prefix; historical
+  published assets retain their names.
+
 ## 0.3.0
 
 - Add compact per-run JSON and Markdown indexes with track provenance and coverage gaps.

@@ -55,7 +55,7 @@ class ReleaseTests(unittest.TestCase):
         for out in (first, second):
             result = self.run_release(out, self.first)
             self.assertEqual(result.returncode, 0, result.stderr)
-        for name in ("subsdown-v0.1.0-source.zip", "release-manifest.json", "SHA256SUMS"):
+        for name in ("captions2llm-v0.1.0-source.zip", "release-manifest.json", "SHA256SUMS"):
             self.assertEqual((first / name).read_bytes(), (second / name).read_bytes())
         manifest = json.loads((first / "release-manifest.json").read_text(encoding="utf-8"))
         archive = first / manifest["archive"]
@@ -66,16 +66,16 @@ class ReleaseTests(unittest.TestCase):
         expected = self.git("ls-tree", "-r", "--name-only", self.first).splitlines()
         self.assertEqual([x["path"] for x in manifest["files"]], expected)
         with zipfile.ZipFile(archive) as zf:
-            self.assertEqual(zf.namelist(), ["subsdown-v0.1.0/" + p for p in expected])
+            self.assertEqual(zf.namelist(), ["captions2llm-v0.1.0/" + p for p in expected])
             for entry in manifest["files"]:
                 path = entry["path"]
-                content = zf.read("subsdown-v0.1.0/" + path)
+                content = zf.read("captions2llm-v0.1.0/" + path)
                 original = subprocess.check_output(["git", "-C", str(self.repo), "show", self.first + ":" + path])
                 self.assertEqual(content, original)
                 self.assertEqual(hashlib.sha256(content).hexdigest(), entry["sha256"])
             destination = self.base / "extract with spaces"
             zf.extractall(destination)
-            self.assertEqual((destination / "subsdown-v0.1.0" / "VERSION").read_text(), "0.1.0\n")
+            self.assertEqual((destination / "captions2llm-v0.1.0" / "VERSION").read_text(), "0.1.0\n")
         for line in (first / "SHA256SUMS").read_text().splitlines():
             value, name = line.split("  ", 1)
             self.assertEqual(value, hashlib.sha256((first / name).read_bytes()).hexdigest())

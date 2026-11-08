@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Subtitle-only batch orchestration behind the Windows subsdown launchers."""
+"""Captions2LLM subtitle collection engine; legacy subsdown entry point."""
 from __future__ import annotations
 import argparse
 from contextlib import redirect_stdout

@@ -1,4 +1,4 @@
-# Subsdown agent router
+# Captions2LLM agent router
 
 For installation or operation, read [docs/AGENT_GUIDE.md](docs/AGENT_GUIDE.md) first.
 For code changes, read README.md and docs/MAINTENANCE.md before changing behavior.

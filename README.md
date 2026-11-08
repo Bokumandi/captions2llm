@@ -1,4 +1,4 @@
-# Subsdown + Subsmerge — YouTube text corpora for LLMs
+# Captions2LLM — YouTube text corpora for LLMs
 
 **Turn captioned YouTube videos, whole playlists and public channels into a corpus
 that an LLM or an agent can analyze.** Collect available automatic or manual
@@ -25,17 +25,17 @@ repository owner's direction. Upstream authorship is credited separately.
 
 ```powershell
 # Process the entire returned playlist; create combined JSON + Markdown.
-.\subsdown.ps1 "https://www.youtube.com/playlist?list=PLAYLIST_ID" -Merge
+.\captions2llm.ps1 download "https://www.youtube.com/playlist?list=PLAYLIST_ID" -Merge
 
 # Process the public channel, including its returned video/short/live upload tabs.
 # TextOnly keeps a single copy of each transcript's text in the combined JSON.
-.\subsdown.ps1 "https://www.youtube.com/@Creator" -Merge -TextOnly
+.\captions2llm.ps1 download "https://www.youtube.com/@Creator" -Merge -TextOnly
 
 # Optional small trial. There is NO automatic collection-size limit by default.
-.\subsdown.ps1 "https://www.youtube.com/@Creator" -MaxVideos 10 -Merge -TextOnly
+.\captions2llm.ps1 download "https://www.youtube.com/@Creator" -MaxVideos 10 -Merge -TextOnly
 
 # Agent workflow: exactly one final JSON object on stdout; progress on stderr.
-.\subsdown.ps1 -InputFile .\links.txt -Merge -TextOnly -Json
+.\captions2llm.ps1 download -InputFile .\links.txt -Merge -TextOnly -Json
 ```
 
 Replace placeholders with real public YouTube URLs. A channel root selects the
@@ -62,7 +62,7 @@ For installation, dependency discovery and agent operation, start with the
 - Local cleaning/merging only needs Python. Helpers use the standard library:
   no `pip install`, npm, API key, model weights or server is required.
 
-Use a checkout or extract the source ZIP from [Releases](https://github.com/Bokumandi/subsdown/releases).
+Use a checkout or extract the source ZIP from [Releases](https://github.com/Bokumandi/captions2llm/releases).
 Keep its directory structure, including `VERSION`, modules, launchers and license
 notices. A source release fixes a version/commit and supplies SHA-256 checksums;
 it is not a standalone executable and does not bundle third-party dependencies.
@@ -70,8 +70,8 @@ Python software can have releases even when external tools are installed separat
 
 Reuse compatible shared installations. Supply explicit paths with `-Python`,
 `-YtDlp` and `-FFmpeg` when needed. There is no automatic installation or update.
-Use `subsdown.cmd` for the Windows PowerShell 5.1 wrapper, or
-`pwsh -File .\subsdown.ps1 ...` for PowerShell 7. No global PATH change is required.
+Use `captions2llm.cmd` for the Windows PowerShell 5.1 wrapper, or
+`pwsh -File .\captions2llm.ps1 download ...` for PowerShell 7. No global PATH change is required.
 
 ## Choose the right corpus representation
 
@@ -86,9 +86,9 @@ Use `subsdown.cmd` for the Windows PowerShell 5.1 wrapper, or
 
 A large single JSON/MD makes sense as a **storage and exchange artifact**. It does
 not make an unlimited corpus fit into an LLM's context window. Use the combined
-Markdown/text-only profile when it fits; otherwise use `subsbatch` to prepare bounded reading parts from the per-video files.
+Markdown/text-only profile when it fits; otherwise use `prepare` to create bounded reading parts from the per-video files.
 There is no tokenizer, embedding index, semantic search engine or model-specific
-context-budget guarantee built into Subsdown.
+context-budget guarantee built into Captions2LLM.
 
 The normal combined JSON intentionally contains both `text` and timed `segments`:
 agents should ingest one representation for a given task. `-TextOnly` removes that
@@ -99,11 +99,11 @@ not an incremental global library cache or semantic duplicate detector.
 ## Other download options
 
 ```powershell
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Merge -OutRoot .\subsdown_output
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Language fr -Merge
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Manual -Language fr -Merge
-.\subsdown.ps1 "https://www.youtube.com/watch?v=VIDEO_ID&list=PLAYLIST_ID" -CurrentVideoOnly
-.\subsdown.ps1 "https://youtu.be/VIDEO_ID" -Language "en.*,fr.*" -Merge
+.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Merge -OutRoot .\subsdown_output
+.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Language fr -Merge
+.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Manual -Language fr -Merge
+.\captions2llm.ps1 download "https://www.youtube.com/watch?v=VIDEO_ID&list=PLAYLIST_ID" -CurrentVideoOnly
+.\captions2llm.ps1 download "https://youtu.be/VIDEO_ID" -Language "en.*,fr.*" -Merge
 ```
 
 `links.txt` contains one video, playlist or channel URL per line; blank lines and
@@ -143,7 +143,7 @@ coverage gaps and track metadata without transcript bodies. Ingestion means **av
 a missing or restricted caption track becomes a reported gap, not fabricated text.
 
 ```powershell
-.\subsdown.ps1 -Resume .\subsdown_output\.runs\RUN_ID.json -Merge -TextOnly -Json
+.\captions2llm.ps1 download -Resume .\subsdown_output\.runs\RUN_ID.json -Merge -TextOnly -Json
 ```
 
 Use the exact printed/reported manifest path. Input, language and collection scope
@@ -161,10 +161,10 @@ is on stderr. Direct Python uses `--json` and `--kebab-case` options.
 ## Index and prepare offline reading batches
 
 ```powershell
-python subsbatch.py index .\subsdown_output --json
-python subsbatch.py prepare .\subsdown_output --max-chars 30000 --json
-python subsbatch.py status $PlanPath --json
-python subsbatch.py accept-report $PlanPath $ReportPath --json
+python captions2llm.py index .\subsdown_output --json
+python captions2llm.py prepare .\subsdown_output --max-chars 30000 --json
+python captions2llm.py status $PlanPath --json
+python captions2llm.py accept-report $PlanPath $ReportPath --json
 ```
 
 `index FOLDER` inventories existing per-track exports without downloading or
@@ -190,16 +190,17 @@ Markdown report; `--overwrite` permits replacing that derived report. `status`
 checks the plan's coverage and source hashes and reports `pending`, `partial`,
 `declared_complete` or `invalidated`. A declared report is an operator declaration,
 not proof that an LLM understood the material. `--json` produces a structured
-machine result; use `python subsbatch.py --help` for full arguments.
+machine result; use `python captions2llm.py prepare --help` and the other
+subcommands' `--help` for their arguments.
 
 Windows launchers expose the same operations. For example:
 
 ```powershell
-.\subsbatch.ps1 prepare .\subsdown_output -MaxChars 30000 -Json
-.\subsbatch.ps1 accept-report $PlanPath $ReportPath -Json
+.\captions2llm.ps1 prepare .\subsdown_output -MaxChars 30000 -Json
+.\captions2llm.ps1 accept-report $PlanPath $ReportPath -Json
 ```
 
-Use `subsbatch.cmd` for the Windows PowerShell wrapper. Run one report writer per
+Use `captions2llm.cmd` for the Windows PowerShell wrapper. Run one report writer per
 plan at a time; accepted report replacement requires explicit `-Overwrite`.
 
 Offline commands return **0** on success and **2** for invalid input, preparation
@@ -211,13 +212,13 @@ usable output paths; inspect `gap_count`, `error_count` and `enumeration_pending
 
 ```powershell
 # Full legacy JSON export (includes original payload by default for compatibility).
-.\subsmerge.ps1 .\subsdown_output -Output .\combined.json -Pretty
+.\captions2llm.ps1 merge .\subsdown_output -Output .\combined.json -Pretty
 
 # Compact corpus plus one combined Markdown; suitable for LLM ingestion.
-.\subsmerge.ps1 .\subsdown_output -Output .\corpus.json -MarkdownOutput .\corpus.md -TextOnly -Json
+.\captions2llm.ps1 merge .\subsdown_output -Output .\corpus.json -MarkdownOutput .\corpus.md -TextOnly -Json
 
 # Retain timed segments but omit the embedded original object.
-.\subsmerge.ps1 .\subsdown_output -Output .\timed.json -NoOriginal -FailOnError
+.\captions2llm.ps1 merge .\subsdown_output -Output .\timed.json -NoOriginal -FailOnError
 
 python srt_fixer_cli.py source.srt -o cleaned.srt
 python srt_fixer_cli.py -idir .\raw -odir .\clean
@@ -225,7 +226,7 @@ python srt_fixer_cli.py source.srt -o cleaned.srt --manual
 ```
 
 Separate merge/cleanup needs no network. Standalone merger preserves the historical
-JSON default; automatic `subsdown -Merge` omits embedded original payloads.
+JSON default; automatic `download -Merge` omits embedded original payloads.
 `-Overwrite` / `--overwrite` is required to replace an output; source files are
 protected. Merger exit codes: **0** dataset written (inspect `error_count` for
 non-strict partial reads), **2** input/output error, **3** strict read failure,
@@ -238,6 +239,17 @@ repeated phrases, separated speech and short cues are retained. Manual mode
 preserves every cue/text line and normalizes formatting. Empty/malformed inputs
 and invalid timestamps are rejected. Valid overlaps are retained rather than
 inventing timings.
+
+## Compatibility
+
+The previous `subsdown`, `subsmerge` and `subsbatch` entry points (each in
+`.py`, `.ps1` and `.cmd` forms) remain available, as do the existing
+Python engine import APIs. The `subsdown_output` default, `subsmerge-` and
+`subsindex-` output names, and JSON schema identifiers and fields are unchanged.
+Use the canonical `captions2llm` entry points for new integrations. For an
+existing checkout or script, update the remote and paths deliberately after
+checking consumers; a local filesystem alias can preserve old paths during migration.
+Previously published release assets keep their original names.
 
 ## Verification, integration and releases
 

@@ -68,8 +68,8 @@ def build(output: Path, ref: str) -> list[Path]:
     version = version_data.decode("utf-8").strip()
     if not VERSION_RE.fullmatch(version):
         raise ValueError("VERSION must be MAJOR.MINOR.FIX.")
-    prefix = f"subsdown-v{version}/"
-    archive_name = f"subsdown-v{version}-source.zip"
+    prefix = f"captions2llm-v{version}/"
+    archive_name = f"captions2llm-v{version}-source.zip"
     output.mkdir(parents=True, exist_ok=True)
     targets = [output / archive_name, output / "release-manifest.json", output / "SHA256SUMS"]
     if any(p.exists() for p in targets):

@@ -2,7 +2,7 @@
 
 ## Modified upstream cleaner
 
-Subsdown includes a modified copy of [bindestriche/srt_fix](https://github.com/bindestriche/srt_fix).
+Captions2LLM includes a modified copy of [bindestriche/srt_fix](https://github.com/bindestriche/srt_fix).
 The derived files are `simplesrt.py` and `srt_fixer_cli.py`. The original local
 copies matched upstream revision `5b4442a8cdcae06c53545f4d0c99c3e624416919` exactly:
 
@@ -14,14 +14,14 @@ copies matched upstream revision `5b4442a8cdcae06c53545f4d0c99c3e624416919` exac
 The upstream code was released under the **Unlicense**. Its original notice is
 preserved in [LICENSES/srt_fix-Unlicense.txt](LICENSES/srt_fix-Unlicense.txt),
 Git blob `68a49daad8ff7e35068f2b7a97d643aab440eaec`.
-Subsdown's original contributions and local modifications are **MIT licensed**,
+Captions2LLM's original contributions and local modifications are **MIT licensed**,
 copyright 2026 Bokumandi; see [LICENSE](LICENSE).
 
 The locally maintained derivative adds strict SRT parsing, conservative rolling
 caption deduplication, manual-caption preservation, validated timestamps, atomic
 outputs and revised CLI behavior. The original upstream notice applies to its
 code; the MIT notice applies to local contributions. Attribution does not imply
-upstream review, endorsement or responsibility for Subsdown.
+upstream review, endorsement or responsibility for Captions2LLM.
 
 ## Repository relationship
 
@@ -39,7 +39,7 @@ A byte match identifies matching source, not the historical acquisition method.
 
 ## AI-assisted development
 
-Subsdown's application code, modifications, tests and documentation were generated
+Captions2LLM's application code, modifications, tests and documentation were generated
 and reworked with **OpenAI Codex, using GPT-family models**, under the repository
 owner's direction. Parallel Codex agents were used for implementation and review.
 The upstream srt_fix component is credited separately: its authorship is not

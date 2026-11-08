@@ -463,7 +463,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                               "exit_code": 2, "output_json": None, "output_markdown": None,
                               "error_log": None, "item_count": 0, "ignored_count": 0,
                               "error_count": 0}
-    parser = argparse.ArgumentParser(description="Merge subsdown JSON subtitle files recursively into an LLM corpus.")
+    parser = argparse.ArgumentParser(description="Captions2LLM: merge subtitle JSON files recursively into an LLM corpus (legacy subsmerge entry point).")
     parser.add_argument("folder", help="Folder containing subsdown JSON files")
     parser.add_argument("-o", "--output", help="Output JSON path. Default: ./subsmerge-[folder].json")
     parser.add_argument("--markdown-output", help="Also write the same corpus as Markdown")

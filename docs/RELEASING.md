@@ -1,7 +1,7 @@
 # Source releases
 
 A Python tool can have a versioned release even when its interpreter and external
-tools are installed separately. Subsdown distributes **source**, not a standalone
+tools are installed separately. Captions2LLM distributes **source**, not a standalone
 executable or bundled runtime. See [agent setup](AGENT_GUIDE.md) for dependencies.
 
 ## Release contents and trust boundary
@@ -9,8 +9,10 @@ executable or bundled runtime. See [agent setup](AGENT_GUIDE.md) for dependencie
 `VERSION` is the product version. The release tag is `vMAJOR.MINOR.FIX` and points
 to the exact tested commit on main. GitHub also offers automatic tag archives;
 our explicit source ZIP adds a predictable prefix, file inventory, source hashes
-and a separate release manifest/checksum file. It contains the committed code,
-tests, documentation and license notices. No downloaded captions, local evidence,
+and a separate release manifest/checksum file. New source archives are named
+`captions2llm-vVERSION-source.zip` and use the `captions2llm-vVERSION` prefix.
+Previously published assets retain their original names. The ZIP contains the
+committed code, tests, documentation and license notices. No downloaded captions, local evidence,
 credentials, external binaries, Python environment or model is included.
 
 The release builder uses Git blobs, not an arbitrary working-directory scan, and

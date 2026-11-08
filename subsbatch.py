@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline corpus indexing, bounded reading batches and declared agent reports."""
+"""Captions2LLM offline corpus indexing, bounded reading batches and agent reports."""
 from __future__ import annotations
 
 import argparse
